@@ -3,10 +3,10 @@ name: Mirror BTC data to GitHub Pages
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"  # run hourly
+    - cron: "0 * * * *"  # hourly
 
 permissions:
-  contents: read
+  contents: write   # <-- needed to push to gh-pages
   pages: write
   id-token: write
 
@@ -18,6 +18,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository (default branch)
+        uses: actions/checkout@v4
+
       - name: Create public dir
         run: mkdir -p public
 
@@ -33,23 +36,28 @@ jobs:
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # ---- Commit the JSONs to gh-pages branch so raw.githubusercontent.com works ----
-      - name: Checkout gh-pages branch (create if missing)
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-
-      - name: Copy files into repo and commit
+      # ----- Commit JSONs to gh-pages for raw.githubusercontent.com access -----
+      - name: Prepare gh-pages branch
         run: |
-          mkdir -p .
+          set -e
+          # fetch gh-pages if it exists; ignore errors if it doesn't
+          git fetch origin gh-pages || true
+          # create or reset local gh-pages branch
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git checkout --orphan gh-pages
+            git reset --hard
+          fi
+          # copy files from public/ into repo root of gh-pages
           cp -f public/latest.json public/last-24h.json public/ytd.json public/timestamp.txt .
+          git add latest.json last-24h.json ytd.json timestamp.txt
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add latest.json last-24h.json ytd.json timestamp.txt
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # ---- Also publish to GitHub Pages via artifact (keeps your existing Pages URLs) ----
+      # ----- Also publish to Pages via artifact (keeps your Pages URLs) -----
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
