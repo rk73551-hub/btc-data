@@ -21,17 +21,14 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      - name: Fetch latest row
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" \
-              -o public/latest.json || echo '{}' > public/latest.json
+     name: Fetch latest row
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json || echo '{}' > public/latest.json
 
       - name: Fetch last 24h
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" \
-              -o public/last-24h.json || echo '[]' > public/last-24h.json
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" -o public/last-24h.json || echo '[]' > public/last-24h.json
 
       - name: Fetch YTD
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" \
-              -o public/ytd.json || echo '[]' > public/ytd.json
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json || echo '[]' > public/ytd.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
