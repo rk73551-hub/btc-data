@@ -1,28 +1,39 @@
 name: Mirror BTC data to GitHub Pages
 
 on:
+  workflow_dispatch:        # manual run
   schedule:
-    - cron: "*/2 * * * *"   # every 2 minutes (adjust as you like)
-  workflow_dispatch:        # allow manual run from Actions tab
+    - cron: "*/10 * * * *"  # every 10 minutes (adjust if you want)
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (empty workspace is fine)
-        uses: actions/checkout@v4
+      - name: Create public dir
+        run: mkdir -p public
 
+      # Always create a test file so we can verify easily
+      - name: Write test.json
+        run: echo '{"ok": true, "note": "pages pipeline works"}' > public/test.json
+
+      # Fetch your live data (non-fatal if any URL fails)
       - name: Fetch data from your Vercel API
         run: |
-          mkdir -p public
-          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json
-          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" -o public/last-24h.json
-          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json
+          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" \
+            -o public/latest.json || echo '{}' > public/latest.json
+          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" \
+            -o public/last-24h.json || echo '[]' > public/last-24h.json
+          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" \
+            -o public/ytd.json || echo '[]' > public/ytd.json
           date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
       - name: Upload Pages artifact
@@ -31,13 +42,13 @@ jobs:
           path: public
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
+
 
