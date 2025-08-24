@@ -1,9 +1,9 @@
 name: Mirror BTC data to GitHub Pages
 
 on:
-  workflow_dispatch:        # manual run
+  workflow_dispatch:
   schedule:
-    - cron: "*/10 * * * *"  # every 10 minutes (adjust if you want)
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
