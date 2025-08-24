@@ -1,0 +1,43 @@
+name: Mirror BTC data to GitHub Pages
+
+on:
+  schedule:
+    - cron: "*/2 * * * *"   # every 2 minutes (adjust as you like)
+  workflow_dispatch:        # allow manual run from Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (empty workspace is fine)
+        uses: actions/checkout@v4
+
+      - name: Fetch data from your Vercel API
+        run: |
+          mkdir -p public
+          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json
+          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" -o public/last-24h.json
+          curl -fsSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
