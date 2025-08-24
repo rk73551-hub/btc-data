@@ -33,6 +33,23 @@ jobs:
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
+      # ---- Commit the JSONs to gh-pages branch so raw.githubusercontent.com works ----
+      - name: Checkout gh-pages branch (create if missing)
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Copy files into repo and commit
+        run: |
+          mkdir -p .
+          cp -f public/latest.json public/last-24h.json public/ytd.json public/timestamp.txt .
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add latest.json last-24h.json ytd.json timestamp.txt
+          git commit -m "Update mirrored data" || echo "No changes to commit"
+          git push origin gh-pages
+
+      # ---- Also publish to GitHub Pages via artifact (keeps your existing Pages URLs) ----
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
