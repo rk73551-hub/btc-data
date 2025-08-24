@@ -21,7 +21,7 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-     name: Fetch latest row
+      - name: Fetch latest row
         run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json || echo '{}' > public/latest.json
 
       - name: Fetch last 24h
@@ -47,4 +47,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
-
