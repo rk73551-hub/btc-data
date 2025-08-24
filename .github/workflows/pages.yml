@@ -1,9 +1,9 @@
 name: Mirror BTC data to GitHub Pages
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:        # manual trigger
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/10 * * * *"  # every 10 minutes
 
 permissions:
   contents: read
@@ -21,20 +21,20 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # Always create a test file so we can verify easily
-      - name: Write test.json
+      - name: Write test.json (sanity file)
         run: echo '{"ok": true, "note": "pages pipeline works"}' > public/test.json
 
-      # Fetch your live data (non-fatal if any URL fails)
-      - name: Fetch data from your Vercel API
-        run: |
-          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" \
-            -o public/latest.json || echo '{}' > public/latest.json
-          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" \
-            -o public/last-24h.json || echo '[]' > public/last-24h.json
-          curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" \
-            -o public/ytd.json || echo '[]' > public/ytd.json
-          date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
+      - name: Fetch latest row
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json || echo '{}' > public/latest.json
+
+      - name: Fetch last 24h
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" -o public/last-24h.json || echo '[]' > public/last-24h.json
+
+      - name: Fetch YTD
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json || echo '[]' > public/ytd.json
+
+      - name: Write timestamp
+        run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
