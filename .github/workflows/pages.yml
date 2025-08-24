@@ -1,28 +1,53 @@
-name: Deploy static content to Pages
+name: Mirror BTC data to GitHub Pages
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"  # run hourly
 
 permissions:
   contents: read
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  deploy:
-    environment:
-      name: github-pages
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-      - name: Upload artifact
+      - name: Create public dir
+        run: mkdir -p public
+
+      - name: Fetch latest row
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" \
+              -o public/latest.json || echo '{}' > public/latest.json
+
+      - name: Fetch last 24h
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" \
+              -o public/last-24h.json || echo '[]' > public/last-24h.json
+
+      - name: Fetch YTD
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" \
+              -o public/ytd.json || echo '[]' > public/ytd.json
+
+      - name: Write timestamp
+        run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
-      - name: Deploy to GitHub Pages
-        id: deployment
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
         uses: actions/deploy-pages@v4
 
