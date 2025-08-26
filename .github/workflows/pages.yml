@@ -3,7 +3,7 @@ name: Mirror BTC data to GitHub Pages
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"  # hourly
+    - cron: "*/15 * * * *"  # every 15 minutes
 
 permissions:
   contents: write
