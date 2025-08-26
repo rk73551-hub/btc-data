@@ -18,7 +18,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      PROXY_BASE: https://btc-proxy-ztjr.vercel.app/api/proxy
+      APPS_SCRIPT_BASE: https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec
+      TOKEN: rX7s9pZ1tKqL8yB0wNmD3eV4
     steps:
       - name: Checkout repository (default branch)
         uses: actions/checkout@v4
@@ -28,7 +29,9 @@ jobs:
 
       - name: Compute time windows (UTC)
         id: times
+        shell: bash
         run: |
+          set -euo pipefail
           SINCE_24H=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           SINCE_90D=$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)
           Y=$(date -u +%Y)
@@ -37,36 +40,66 @@ jobs:
           echo "since90=${SINCE_90D}" >> $GITHUB_OUTPUT
           echo "ytd=${YTD}" >> $GITHUB_OUTPUT
 
-      # Latest single row (Apps Script supports mode=latest)
+      - name: Define curl helper
+        id: helper
+        shell: bash
+        run: |
+          cat > /tmp/fetch.sh << 'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          URL="$1"
+          OUT="$2"
+          curl -fL --retry 3 --retry-delay 2 \
+            -H 'User-Agent: gh-pages-bot' \
+            -sS "$URL" -o "$OUT"
+          # sanity check: ensure JSON (starts with { or [)
+          if [ -s "$OUT" ]; then
+            head -c 1 "$OUT" | grep -qE '[\{\[]' || { echo "Non-JSON response written to $OUT"; exit 9; }
+          fi
+          EOF
+          chmod +x /tmp/fetch.sh
+
+      # Latest single row from Apps Script (mode=latest)
       - name: Fetch latest row
+        shell: bash
         run: |
-          curl -sSL "${PROXY_BASE}?mode=latest" -o public/latest.json || echo '{}' > public/latest.json
+          /tmp/fetch.sh "${APPS_SCRIPT_BASE}?mode=latest&token=${TOKEN}" public/latest.json \
+          || echo '{}' > public/latest.json
 
-      # Last 24h via since=… (avoid an unsupported mode)
+      # Last 24h via since=
       - name: Fetch last 24h
+        shell: bash
         run: |
-          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.since24 }}" -o public/last-24h.json || echo '[]' > public/last-24h.json
+          /tmp/fetch.sh "${APPS_SCRIPT_BASE}?since=${{ steps.times.outputs.since24 }}&token=${TOKEN}" public/last-24h.json \
+          || echo '[]' > public/last-24h.json
 
-      # YTD via since=YYYY-01-01T00:00:00Z (no mode=ytd)
+      # YTD via since=YYYY-01-01T00:00:00Z
       - name: Fetch YTD
+        shell: bash
         run: |
-          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.ytd }}" -o public/ytd.json || echo '[]' > public/ytd.json
+          /tmp/fetch.sh "${APPS_SCRIPT_BASE}?since=${{ steps.times.outputs.ytd }}&token=${TOKEN}" public/ytd.json \
+          || echo '[]' > public/ytd.json
 
-      # 90d via since=… (no mode=90d needed)
+      # 90d via since=
       - name: Fetch 90d dataset
+        shell: bash
         run: |
-          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.since90 }}" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+          /tmp/fetch.sh "${APPS_SCRIPT_BASE}?since=${{ steps.times.outputs.since90 }}&token=${TOKEN}" public/90d.json \
+          || echo '{"rows":[]}' > public/90d.json
 
-      # Compact dashboard summary (your script supports mode=dashboard)
+      # Compact dashboard summary
       - name: Fetch dashboard summary (compact)
+        shell: bash
         run: |
-          curl -sSL "${PROXY_BASE}?mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+          /tmp/fetch.sh "${APPS_SCRIPT_BASE}?mode=dashboard&token=${TOKEN}" public/dashboard.json \
+          || echo '{"ok":false}' > public/dashboard.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
       # Commit JSONs to gh-pages (so raw.githubusercontent.com URLs work)
       - name: Prepare gh-pages branch
+        shell: bash
         run: |
           set -e
           git fetch origin gh-pages || true
@@ -83,7 +116,7 @@ jobs:
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # Also publish to Pages site (optional but fine to keep)
+      # Also publish to Pages site (optional)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
