@@ -6,7 +6,7 @@ on:
     - cron: "0 * * * *"  # hourly
 
 permissions:
-  contents: write   # <-- needed to push to gh-pages
+  contents: write
   pages: write
   id-token: write
 
@@ -33,31 +33,36 @@ jobs:
       - name: Fetch YTD
         run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json || echo '[]' > public/ytd.json
 
+      # NEW: 90d dataset from BTC_1h_90d (A:U values)
+      - name: Fetch 90d dataset
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=90d&limit=2160" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+
+      # NEW: compact dashboard summary
+      - name: Fetch dashboard summary
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # ----- Commit JSONs to gh-pages for raw.githubusercontent.com access -----
+      # Commit JSONs to gh-pages (raw.githubusercontent.com access)
       - name: Prepare gh-pages branch
         run: |
           set -e
-          # fetch gh-pages if it exists; ignore errors if it doesn't
           git fetch origin gh-pages || true
-          # create or reset local gh-pages branch
           if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
             git checkout -B gh-pages origin/gh-pages
           else
             git checkout --orphan gh-pages
             git reset --hard
           fi
-          # copy files from public/ into repo root of gh-pages
-          cp -f public/latest.json public/last-24h.json public/ytd.json public/timestamp.txt .
-          git add latest.json last-24h.json ytd.json timestamp.txt
+          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/timestamp.txt .
+          git add latest.json last-24h.json ytd.json 90d.json dashboard.json timestamp.txt
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # ----- Also publish to Pages via artifact (keeps your Pages URLs) -----
+      # Also publish to Pages
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
