@@ -17,7 +17,6 @@ concurrency:
 env:
   # Your deployed Apps Script "exec" URL (no query params)
   API_BASE: "https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec"
-  # Token lives in repo Settings → Secrets → Actions → APITOKEN
   TOKEN: "${{ secrets.APITOKEN }}"
 
 jobs:
@@ -30,34 +29,46 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # Fail fast if any fetch fails — don't overwrite good files with junk
-      - name: Fetch latest row (1 newest candle)
+      # NOTE: Use -L so curl follows 302 redirects from Apps Script
+      # Also: --retry for transient errors; -fS to fail on HTTP errors; -H to express JSON intent
+
+      - name: Fetch latest row (newest candle)
         run: |
           set -euo pipefail
-          curl -fS "$API_BASE?mode=latest&limit=1&token=$TOKEN" -o public/latest.json
+          curl -fSL --retry 3 -H "Accept: application/json" \
+            "$API_BASE?mode=latest&limit=1&token=$TOKEN" \
+            -o public/latest.json
 
-      - name: Fetch last 24h (all rows since now-24h)
+      - name: Fetch last 24h (since now-24h)
         run: |
           set -euo pipefail
           SINCE_24=$(date -u -d '24 hours ago' +"%Y-%m-%dT%H:%M:%SZ")
-          curl -fS "$API_BASE?mode=ytd&since=$SINCE_24&token=$TOKEN" -o public/last-24h.json
+          curl -fSL --retry 3 -H "Accept: application/json" \
+            "$API_BASE?mode=ytd&since=$SINCE_24&token=$TOKEN" \
+            -o public/last-24h.json
 
       - name: Fetch YTD (since Jan 1 UTC)
         run: |
           set -euo pipefail
           YEAR=$(date -u +"%Y")
           SINCE_YTD="${YEAR}-01-01T00:00:00Z"
-          curl -fS "$API_BASE?mode=ytd&since=$SINCE_YTD&token=$TOKEN" -o public/ytd.json
+          curl -fSL --retry 3 -H "Accept: application/json" \
+            "$API_BASE?mode=ytd&since=$SINCE_YTD&token=$TOKEN" \
+            -o public/ytd.json
 
       - name: Fetch 90d dataset
         run: |
           set -euo pipefail
-          curl -fS "$API_BASE?mode=90d&token=$TOKEN" -o public/90d.json
+          curl -fSL --retry 3 -H "Accept: application/json" \
+            "$API_BASE?mode=90d&token=$TOKEN" \
+            -o public/90d.json
 
       - name: Fetch compact dashboard summary
         run: |
           set -euo pipefail
-          curl -fS "$API_BASE?mode=dashboard&token=$TOKEN" -o public/dashboard.json
+          curl -fSL --retry 3 -H "Accept: application/json" \
+            "$API_BASE?mode=dashboard&token=$TOKEN" \
+            -o public/dashboard.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
