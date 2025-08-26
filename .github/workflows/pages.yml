@@ -24,21 +24,20 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
+      # Use explicit modes via your Vercel proxy
       - name: Fetch latest row
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=1" -o public/latest.json || echo '{}' > public/latest.json
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=latest" -o public/latest.json || echo '{}' > public/latest.json
 
       - name: Fetch last 24h
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?limit=168" -o public/last-24h.json || echo '[]' > public/last-24h.json
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=last-24h" -o public/last-24h.json || echo '[]' > public/last-24h.json
 
       - name: Fetch YTD
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?since=2025-01-01T00:00:00Z&limit=20000" -o public/ytd.json || echo '[]' > public/ytd.json
+        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=ytd" -o public/ytd.json || echo '[]' > public/ytd.json
 
-      # NEW: 90d dataset from BTC_1h_90d (A:U values)
       - name: Fetch 90d dataset
         run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=90d&limit=2160" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
 
-      # NEW: compact dashboard summary
-      - name: Fetch dashboard summary
+      - name: Fetch dashboard summary (compact)
         run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
 
       - name: Write timestamp
