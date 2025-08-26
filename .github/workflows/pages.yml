@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PROXY_BASE: https://btc-proxy-ztjr.vercel.app/api/proxy
     steps:
       - name: Checkout repository (default branch)
         uses: actions/checkout@v4
@@ -24,26 +26,46 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # Use explicit modes via your Vercel proxy
+      - name: Compute time windows (UTC)
+        id: times
+        run: |
+          SINCE_24H=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          SINCE_90D=$(date -u -d '90 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          Y=$(date -u +%Y)
+          YTD="${Y}-01-01T00:00:00Z"
+          echo "since24=${SINCE_24H}" >> $GITHUB_OUTPUT
+          echo "since90=${SINCE_90D}" >> $GITHUB_OUTPUT
+          echo "ytd=${YTD}" >> $GITHUB_OUTPUT
+
+      # Latest single row (Apps Script supports mode=latest)
       - name: Fetch latest row
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=latest" -o public/latest.json || echo '{}' > public/latest.json
+        run: |
+          curl -sSL "${PROXY_BASE}?mode=latest" -o public/latest.json || echo '{}' > public/latest.json
 
+      # Last 24h via since=… (avoid an unsupported mode)
       - name: Fetch last 24h
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=last-24h" -o public/last-24h.json || echo '[]' > public/last-24h.json
+        run: |
+          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.since24 }}" -o public/last-24h.json || echo '[]' > public/last-24h.json
 
+      # YTD via since=YYYY-01-01T00:00:00Z (no mode=ytd)
       - name: Fetch YTD
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=ytd" -o public/ytd.json || echo '[]' > public/ytd.json
+        run: |
+          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.ytd }}" -o public/ytd.json || echo '[]' > public/ytd.json
 
+      # 90d via since=… (no mode=90d needed)
       - name: Fetch 90d dataset
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=90d&limit=2160" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+        run: |
+          curl -sSL "${PROXY_BASE}?since=${{ steps.times.outputs.since90 }}" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
 
+      # Compact dashboard summary (your script supports mode=dashboard)
       - name: Fetch dashboard summary (compact)
-        run: curl -sSL "https://btc-proxy-ztjr.vercel.app/api/proxy?mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+        run: |
+          curl -sSL "${PROXY_BASE}?mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # Commit JSONs to gh-pages (raw.githubusercontent.com access)
+      # Commit JSONs to gh-pages (so raw.githubusercontent.com URLs work)
       - name: Prepare gh-pages branch
         run: |
           set -e
@@ -61,7 +83,7 @@ jobs:
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # Also publish to Pages
+      # Also publish to Pages site (optional but fine to keep)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
