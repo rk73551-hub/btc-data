@@ -14,78 +14,84 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
-# Put your echo BASE and LIB here (same ones you shared)
 env:
-  BASE: "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM"
-  LIB:  "M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt"
+  # === IMPORTANT ===
+  # Use your direct /exec URL, not the echo link.
+  EXEC: "https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec"
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository (default branch)
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Create public dir
         run: mkdir -p public
 
+      - name: Sanity ping (health)
+        run: |
+          set -e
+          echo "Pinging health…"
+          curl -sS --get "$EXEC" \
+            --data-urlencode "mode=health" \
+            --data-urlencode "token=${{ secrets.APITOKEN }}" \
+            -w "\n[HTTP %{http_code}] %{url_effective}\n" -o public/health.json
+          head -c 500 public/health.json || true
+          echo
+
       - name: Fetch latest row (A:N)
         run: |
-          TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sSL --get "$BASE" \
-            --data-urlencode "lib=$LIB" \
+          set -e
+          curl -sS --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=1" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "_=$TS" \
-            -o public/latest.json || echo '{}' > public/latest.json
+            -o public/latest.json
+          echo "latest.json bytes: $(wc -c < public/latest.json)"
 
       - name: Fetch last 24h (A:N)
         run: |
-          TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sSL --get "$BASE" \
-            --data-urlencode "lib=$LIB" \
+          set -e
+          curl -sS --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=24" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "_=$TS" \
-            -o public/last-24h.json || echo '[]' > public/last-24h.json
+            -o public/last-24h.json
+          echo "last-24h.json bytes: $(wc -c < public/last-24h.json)"
 
       - name: Fetch YTD (A:N)
         run: |
-          TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sSL --get "$BASE" \
-            --data-urlencode "lib=$LIB" \
+          set -e
+          curl -sS --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=20000" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "_=$TS" \
-            -o public/ytd.json || echo '[]' > public/ytd.json
+            -o public/ytd.json
+          echo "ytd.json bytes: $(wc -c < public/ytd.json)"
 
       - name: Fetch 90d dataset (A:N)
         run: |
-          TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sSL --get "$BASE" \
-            --data-urlencode "lib=$LIB" \
+          set -e
+          curl -sS --get "$EXEC" \
             --data-urlencode "mode=90d" \
             --data-urlencode "limit=2160" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "_=$TS" \
-            -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+            -o public/90d.json
+          echo "90d.json bytes: $(wc -c < public/90d.json)"
 
       - name: Fetch dashboard summary
         run: |
-          TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sSL --get "$BASE" \
-            --data-urlencode "lib=$LIB" \
+          set -e
+          curl -sS --get "$EXEC" \
             --data-urlencode "mode=dashboard" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "_=$TS" \
-            -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+            -o public/dashboard.json
+          echo "dashboard.json bytes: $(wc -c < public/dashboard.json)"
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
