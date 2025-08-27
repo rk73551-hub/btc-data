@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Your working Apps Script "echo" URL (no params here):
   BASE: "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM"
   LIB:  "M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt"
 
@@ -29,55 +28,50 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # Latest row (1 row from YTD)
       - name: Fetch latest row
         run: |
           TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sS --get "$BASE" \
+          curl -sSL --get "$BASE" \
             --data-urlencode "lib=$LIB" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=1" \
             --data-urlencode "_=$TS" \
             -o public/latest.json || echo '{}' > public/latest.json
 
-      # Last 24h (24 rows from YTD)
       - name: Fetch last 24h
         run: |
           TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sS --get "$BASE" \
+          curl -sSL --get "$BASE" \
             --data-urlencode "lib=$LIB" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=24" \
             --data-urlencode "_=$TS" \
             -o public/last-24h.json || echo '[]' > public/last-24h.json
 
-      # YTD (cap at 20k rows)
       - name: Fetch YTD
         run: |
           TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sS --get "$BASE" \
+          curl -sSL --get "$BASE" \
             --data-urlencode "lib=$LIB" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=20000" \
             --data-urlencode "_=$TS" \
             -o public/ytd.json || echo '[]' > public/ytd.json
 
-      # 90d dataset (up to 2160 rows)
       - name: Fetch 90d dataset
         run: |
           TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sS --get "$BASE" \
+          curl -sSL --get "$BASE" \
             --data-urlencode "lib=$LIB" \
             --data-urlencode "mode=90d" \
             --data-urlencode "limit=2160" \
             --data-urlencode "_=$TS" \
             -o public/90d.json || echo '{"rows":[]}' > public/90d.json
 
-      # Dashboard summary
       - name: Fetch dashboard summary
         run: |
           TS="${{ github.run_id }}-${{ github.run_number }}"
-          curl -sS --get "$BASE" \
+          curl -sSL --get "$BASE" \
             --data-urlencode "lib=$LIB" \
             --data-urlencode "mode=dashboard" \
             --data-urlencode "_=$TS" \
@@ -86,8 +80,7 @@ jobs:
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # Commit JSONs to gh-pages
-      - name: Prepare gh-pages branch
+      - name: Commit JSONs to gh-pages
         run: |
           set -e
           git fetch origin gh-pages || true
@@ -103,6 +96,10 @@ jobs:
           git config user.email "actions@github.com"
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
+          git checkout -
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
