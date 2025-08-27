@@ -24,35 +24,25 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # Latest row (A:G is fine here)
+      # Fetch latest row (just 1 row)
       - name: Fetch latest row
-        run: |
-          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=latest&token=${{ secrets.APITOKEN }}" \
-          -o public/latest.json || echo '{}' > public/latest.json
+        run: curl -sSL "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM&lib=M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt&mode=ytd&limit=1" -o public/latest.json || echo '{}' > public/latest.json
 
-      # Last 24h, A:N (1:14)
-      - name: Fetch last 24h (A:N)
-        run: |
-          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=ytd&cols=1:14&limit=24&token=${{ secrets.APITOKEN }}" \
-          -o public/last-24h.json || echo '[]' > public/last-24h.json
+      # Fetch last 24h
+      - name: Fetch last 24h
+        run: curl -sSL "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM&lib=M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt&mode=ytd&limit=24" -o public/last-24h.json || echo '[]' > public/last-24h.json
 
-      # YTD, A:N
-      - name: Fetch YTD (A:N)
-        run: |
-          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=ytd&cols=1:14&since=2025-01-01T00:00:00Z&limit=20000&token=${{ secrets.APITOKEN }}" \
-          -o public/ytd.json || echo '[]' > public/ytd.json
+      # Fetch YTD
+      - name: Fetch YTD
+        run: curl -sSL "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM&lib=M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt&mode=ytd&limit=20000" -o public/ytd.json || echo '[]' > public/ytd.json
 
-      # 90d, A:N
-      - name: Fetch 90d (A:N)
-        run: |
-          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=90d&cols=1:14&limit=2160&token=${{ secrets.APITOKEN }}" \
-          -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+      # Fetch 90d dataset
+      - name: Fetch 90d dataset
+        run: curl -sSL "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM&lib=M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt&mode=90d&limit=2160" -o public/90d.json || echo '{"rows":[]}' > public/90d.json
 
-      # Dashboard (compact)
+      # Fetch dashboard summary
       - name: Fetch dashboard summary
-        run: |
-          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=dashboard&token=${{ secrets.APITOKEN }}" \
-          -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+        run: curl -sSL "https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLhIdOiy9yG4bbaRVQqu3ppXA25RMnrJlBTsfDFWoxf7X3cD2jzioBvD9u6c1B-qTUK28hsgbKa9xPZp_M_GbhdihF4YWxrrkSlqoH90bWEQ8DixPFH6KYy75JBqQ5u2oCWAFuXVkidPIJerOIwyipVMBRikI-1fnWZtm7gIbYBc6ewU09X81nf3STTlUIdcKbtiP_oaZ3SsSi8iCRfSU1FjJf5C6HYtF0J8NSRIePnnU3-HeagK2gOP-A6pY4sEotwFhaGtVIAsFcyAZRoUG7DbKcw7btYJEBf1yRqoNCx1gsE-xSe3UcqaGtqzxYd-FpwL9kBf9VBIE-hm7zEQqenayosRs6jBbZXA2nURe0MAVi3VTDM&lib=M8R3HWLSdx30lEyuFuFPQ2R4NngdmT2Wt&mode=dashboard" -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
