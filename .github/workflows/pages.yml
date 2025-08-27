@@ -15,8 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # === IMPORTANT ===
-  # Use your direct /exec URL, not the echo link.
+  # Use the direct /exec URL (NOT the echo link)
   EXEC: "https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec"
 
 jobs:
@@ -32,66 +31,64 @@ jobs:
       - name: Sanity ping (health)
         run: |
           set -e
-          echo "Pinging health…"
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=health" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -w "\n[HTTP %{http_code}] %{url_effective}\n" -o public/health.json
-          head -c 500 public/health.json || true
-          echo
+            -o public/health.json
+          grep -qE '^\s*[\[{]' public/health.json || (echo "Health not JSON:"; head -n 20 public/health.json; exit 1)
 
       - name: Fetch latest row (A:N)
         run: |
           set -e
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=1" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/latest.json
-          echo "latest.json bytes: $(wc -c < public/latest.json)"
+          grep -qE '^\s*[\[{]' public/latest.json || (echo "Latest not JSON:"; head -n 20 public/latest.json; exit 1)
 
       - name: Fetch last 24h (A:N)
         run: |
           set -e
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=24" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/last-24h.json
-          echo "last-24h.json bytes: $(wc -c < public/last-24h.json)"
+          grep -qE '^\s*[\[{]' public/last-24h.json || (echo "24h not JSON:"; head -n 20 public/last-24h.json; exit 1)
 
       - name: Fetch YTD (A:N)
         run: |
           set -e
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=ytd" \
             --data-urlencode "limit=20000" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/ytd.json
-          echo "ytd.json bytes: $(wc -c < public/ytd.json)"
+          grep -qE '^\s*[\[{]' public/ytd.json || (echo "YTD not JSON:"; head -n 20 public/ytd.json; exit 1)
 
       - name: Fetch 90d dataset (A:N)
         run: |
           set -e
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=90d" \
             --data-urlencode "limit=2160" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/90d.json
-          echo "90d.json bytes: $(wc -c < public/90d.json)"
+          grep -qE '^\s*[\[{]' public/90d.json || (echo "90d not JSON:"; head -n 20 public/90d.json; exit 1)
 
       - name: Fetch dashboard summary
         run: |
           set -e
-          curl -sS --get "$EXEC" \
+          curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=dashboard" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/dashboard.json
-          echo "dashboard.json bytes: $(wc -c < public/dashboard.json)"
+          grep -qE '^\s*\{' public/dashboard.json || (echo "Dashboard not JSON:"; head -n 20 public/dashboard.json; exit 1)
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
