@@ -3,7 +3,7 @@ name: Mirror BTC data to GitHub Pages
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"  # every 15 minutes
+    - cron: "*/15 * * * *"   # every 15 minutes
 
 permissions:
   contents: write
@@ -14,13 +14,12 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
-env:
-  # Use the direct /exec URL (NOT the echo link)
-  EXEC: "https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec"
-
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      EXEC: https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,9 +34,18 @@ jobs:
             --data-urlencode "mode=health" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/health.json
-          grep -qE '^\s*[\[{]' public/health.json || (echo "Health not JSON:"; head -n 20 public/health.json; exit 1)
+          grep -qE '^\s*[\[{]' public/health.json || { echo "Health not JSON:"; head -n 40 public/health.json; exit 1; }
 
-      - name: Fetch latest row (A:N)
+      - name: Compute times (24h and YTD)
+        id: when
+        run: |
+          SINCE_24H=$(date -u -d '24 hours ago' +'%Y-%m-%dT%H:%M:%SZ')
+          YTD=$(date -u +'%Y-01-01T00:00:00Z')
+          echo "since24=$SINCE_24H" >> $GITHUB_OUTPUT
+          echo "ytd=$YTD"          >> $GITHUB_OUTPUT
+
+      # LATEST (just fetch the last row from YTD tab, include A:N = 1:14)
+      - name: Fetch latest row
         run: |
           set -e
           curl -sSfL --get "$EXEC" \
@@ -46,41 +54,46 @@ jobs:
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/latest.json
-          grep -qE '^\s*[\[{]' public/latest.json || (echo "Latest not JSON:"; head -n 20 public/latest.json; exit 1)
+          grep -qE '^\s*[\[{]' public/latest.json || { echo "Latest not JSON:"; head -n 40 public/latest.json; exit 1; }
 
-      - name: Fetch last 24h (A:N)
+      # LAST 24h (include A:N = 1:14)
+      - name: Fetch last 24h
         run: |
           set -e
           curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=ytd" \
-            --data-urlencode "limit=24" \
+            --data-urlencode "since=${{ steps.when.outputs.since24 }}" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/last-24h.json
-          grep -qE '^\s*[\[{]' public/last-24h.json || (echo "24h not JSON:"; head -n 20 public/last-24h.json; exit 1)
+          grep -qE '^\s*[\[{]' public/last-24h.json || { echo "24h not JSON:"; head -n 60 public/last-24h.json; exit 1; }
 
-      - name: Fetch YTD (A:N)
+      # YTD (include A:N = 1:14, cap generously)
+      - name: Fetch YTD
         run: |
           set -e
           curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=ytd" \
+            --data-urlencode "since=${{ steps.when.outputs.ytd }}" \
             --data-urlencode "limit=20000" \
             --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/ytd.json
-          grep -qE '^\s*[\[{]' public/ytd.json || (echo "YTD not JSON:"; head -n 20 public/ytd.json; exit 1)
+          grep -qE '^\s*[\[{]' public/ytd.json || { echo "YTD not JSON:"; head -n 60 public/ytd.json; exit 1; }
 
-      - name: Fetch 90d dataset (A:N)
+      # 90d (from BTC_1h_90d, include A:U = 1:21)
+      - name: Fetch 90d dataset
         run: |
           set -e
           curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=90d" \
             --data-urlencode "limit=2160" \
-            --data-urlencode "cols=1:14" \
+            --data-urlencode "cols=1:21" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/90d.json
-          grep -qE '^\s*[\[{]' public/90d.json || (echo "90d not JSON:"; head -n 20 public/90d.json; exit 1)
+          grep -qE '^\s*[\[{]' public/90d.json || { echo "90d not JSON:"; head -n 60 public/90d.json; exit 1; }
 
+      # DASHBOARD (full metrics object)
       - name: Fetch dashboard summary
         run: |
           set -e
@@ -88,12 +101,22 @@ jobs:
             --data-urlencode "mode=dashboard" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/dashboard.json
-          grep -qE '^\s*\{' public/dashboard.json || (echo "Dashboard not JSON:"; head -n 20 public/dashboard.json; exit 1)
+          grep -qE '^\s*{' public/dashboard.json || { echo "Dashboard not JSON:"; head -n 60 public/dashboard.json; exit 1; }
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      - name: Commit JSONs to gh-pages
+      - name: Quick preview of files
+        run: |
+          echo "---- health.json ----"; head -n 2 public/health.json || true
+          echo "---- latest.json ----"; head -n 2 public/latest.json || true
+          echo "---- 24h.json    ----"; head -n 2 public/last-24h.json || true
+          echo "---- ytd.json    ----"; head -n 2 public/ytd.json || true
+          echo "---- 90d.json    ----"; head -n 2 public/90d.json || true
+          echo "---- dashboard   ----"; head -n 20 public/dashboard.json || true
+
+      # Commit JSONs to gh-pages (for raw.githubusercontent.com)
+      - name: Commit to gh-pages branch
         run: |
           set -e
           git fetch origin gh-pages || true
@@ -109,11 +132,8 @@ jobs:
           git config user.email "actions@github.com"
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
-          git checkout -
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
+      # Publish to GitHub Pages (nice human-friendly site; optional but handy)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
