@@ -14,11 +14,6 @@ concurrency:
   group: "pages"
   cancel-in-progress: true
 
-env:
-  # Your deployed Apps Script "exec" URL (no query params)
-  API_BASE: "https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec"
-  TOKEN: "${{ secrets.APITOKEN }}"
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,51 +24,40 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # NOTE: Use -L so curl follows 302 redirects from Apps Script
-      # Also: --retry for transient errors; -fS to fail on HTTP errors; -H to express JSON intent
-
-      - name: Fetch latest row (newest candle)
+      # Latest row (A:G is fine here)
+      - name: Fetch latest row
         run: |
-          set -euo pipefail
-          curl -fSL --retry 3 -H "Accept: application/json" \
-            "$API_BASE?mode=latest&limit=1&token=$TOKEN" \
-            -o public/latest.json
+          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=latest&token=${{ secrets.APITOKEN }}" \
+          -o public/latest.json || echo '{}' > public/latest.json
 
-      - name: Fetch last 24h (since now-24h)
+      # Last 24h, A:N (1:14)
+      - name: Fetch last 24h (A:N)
         run: |
-          set -euo pipefail
-          SINCE_24=$(date -u -d '24 hours ago' +"%Y-%m-%dT%H:%M:%SZ")
-          curl -fSL --retry 3 -H "Accept: application/json" \
-            "$API_BASE?mode=ytd&since=$SINCE_24&token=$TOKEN" \
-            -o public/last-24h.json
+          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=ytd&cols=1:14&limit=24&token=${{ secrets.APITOKEN }}" \
+          -o public/last-24h.json || echo '[]' > public/last-24h.json
 
-      - name: Fetch YTD (since Jan 1 UTC)
+      # YTD, A:N
+      - name: Fetch YTD (A:N)
         run: |
-          set -euo pipefail
-          YEAR=$(date -u +"%Y")
-          SINCE_YTD="${YEAR}-01-01T00:00:00Z"
-          curl -fSL --retry 3 -H "Accept: application/json" \
-            "$API_BASE?mode=ytd&since=$SINCE_YTD&token=$TOKEN" \
-            -o public/ytd.json
+          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=ytd&cols=1:14&since=2025-01-01T00:00:00Z&limit=20000&token=${{ secrets.APITOKEN }}" \
+          -o public/ytd.json || echo '[]' > public/ytd.json
 
-      - name: Fetch 90d dataset
+      # 90d, A:N
+      - name: Fetch 90d (A:N)
         run: |
-          set -euo pipefail
-          curl -fSL --retry 3 -H "Accept: application/json" \
-            "$API_BASE?mode=90d&token=$TOKEN" \
-            -o public/90d.json
+          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=export&tab=90d&cols=1:14&limit=2160&token=${{ secrets.APITOKEN }}" \
+          -o public/90d.json || echo '{"rows":[]}' > public/90d.json
 
-      - name: Fetch compact dashboard summary
+      # Dashboard (compact)
+      - name: Fetch dashboard summary
         run: |
-          set -euo pipefail
-          curl -fSL --retry 3 -H "Accept: application/json" \
-            "$API_BASE?mode=dashboard&token=$TOKEN" \
-            -o public/dashboard.json
+          curl -sSL -L "${{ secrets.APPSCRIPT_URL }}?mode=dashboard&token=${{ secrets.APITOKEN }}" \
+          -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # Commit JSONs to gh-pages (raw.githubusercontent.com access)
+      # Commit JSONs to gh-pages
       - name: Prepare gh-pages branch
         run: |
           set -e
@@ -91,7 +75,6 @@ jobs:
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # Also publish to Pages
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
