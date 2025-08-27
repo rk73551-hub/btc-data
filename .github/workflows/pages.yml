@@ -3,7 +3,7 @@ name: Mirror BTC data to GitHub Pages
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/15 * * * *"   # every 15 minutes
+    - cron: "*/15 * * * *"
 
 permissions:
   contents: write
@@ -44,7 +44,6 @@ jobs:
           echo "since24=$SINCE_24H" >> $GITHUB_OUTPUT
           echo "ytd=$YTD"          >> $GITHUB_OUTPUT
 
-      # LATEST (A:N)
       - name: Fetch latest row
         run: |
           set -e
@@ -56,7 +55,6 @@ jobs:
             -o public/latest.json
           grep -qE '^\s*[\[{]' public/latest.json || { echo "Latest not JSON:"; head -n 40 public/latest.json; exit 1; }
 
-      # 24H (A:N)
       - name: Fetch last 24h
         run: |
           set -e
@@ -68,7 +66,6 @@ jobs:
             -o public/last-24h.json
           grep -qE '^\s*[\[{]' public/last-24h.json || { echo "24h not JSON:"; head -n 60 public/last-24h.json; exit 1; }
 
-      # YTD (A:N)
       - name: Fetch YTD
         run: |
           set -e
@@ -81,7 +78,6 @@ jobs:
             -o public/ytd.json
           grep -qE '^\s*[\[{]' public/ytd.json || { echo "YTD not JSON:"; head -n 60 public/ytd.json; exit 1; }
 
-      # 90d (A:N) — using 1:14 to match current sheet
       - name: Fetch 90d dataset
         run: |
           set -e
@@ -93,7 +89,6 @@ jobs:
             -o public/90d.json
           grep -qE '^\s*[\[{]' public/90d.json || { echo "90d not JSON:"; head -n 60 public/90d.json; exit 1; }
 
-      # Dashboard (object)
       - name: Fetch dashboard summary
         run: |
           set -e
@@ -105,14 +100,6 @@ jobs:
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
-
-      - name: Quick preview of files
-        run: |
-          echo "---- latest.json ----"; head -n 2 public/latest.json || true
-          echo "---- 24h.json    ----"; head -n 2 public/last-24h.json || true
-          echo "---- ytd.json    ----"; head -n 2 public/ytd.json || true
-          echo "---- 90d.json    ----"; head -n 2 public/90d.json || true
-          echo "---- dashboard   ----"; head -n 20 public/dashboard.json || true
 
       - name: Commit to gh-pages branch
         run: |
@@ -141,7 +128,20 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url }}
     steps:
-      - id: deployment
+      # First attempt
+      - id: deploy1
+        name: Deploy to Pages (attempt 1)
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      # If attempt 1 failed because another deployment is in progress, wait and retry
+      - name: Wait a bit if previous deploy still finishing
+        if: ${{ steps.deploy1.outcome == 'failure' }}
+        run: sleep 60
+
+      - id: deploy2
+        name: Deploy to Pages (attempt 2)
+        if: ${{ steps.deploy1.outcome == 'failure' }}
         uses: actions/deploy-pages@v4
