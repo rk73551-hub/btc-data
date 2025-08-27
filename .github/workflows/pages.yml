@@ -44,7 +44,7 @@ jobs:
           echo "since24=$SINCE_24H" >> $GITHUB_OUTPUT
           echo "ytd=$YTD"          >> $GITHUB_OUTPUT
 
-      # LATEST (just fetch the last row from YTD tab, include A:N = 1:14)
+      # LATEST (A:N)
       - name: Fetch latest row
         run: |
           set -e
@@ -56,7 +56,7 @@ jobs:
             -o public/latest.json
           grep -qE '^\s*[\[{]' public/latest.json || { echo "Latest not JSON:"; head -n 40 public/latest.json; exit 1; }
 
-      # LAST 24h (include A:N = 1:14)
+      # 24H (A:N)
       - name: Fetch last 24h
         run: |
           set -e
@@ -68,7 +68,7 @@ jobs:
             -o public/last-24h.json
           grep -qE '^\s*[\[{]' public/last-24h.json || { echo "24h not JSON:"; head -n 60 public/last-24h.json; exit 1; }
 
-      # YTD (include A:N = 1:14, cap generously)
+      # YTD (A:N)
       - name: Fetch YTD
         run: |
           set -e
@@ -81,19 +81,19 @@ jobs:
             -o public/ytd.json
           grep -qE '^\s*[\[{]' public/ytd.json || { echo "YTD not JSON:"; head -n 60 public/ytd.json; exit 1; }
 
-      # 90d (from BTC_1h_90d, include A:U = 1:21)
+      # 90d (A:N) — using 1:14 to match current sheet
       - name: Fetch 90d dataset
         run: |
           set -e
           curl -sSfL --get "$EXEC" \
             --data-urlencode "mode=90d" \
             --data-urlencode "limit=2160" \
-            --data-urlencode "cols=1:21" \
+            --data-urlencode "cols=1:14" \
             --data-urlencode "token=${{ secrets.APITOKEN }}" \
             -o public/90d.json
           grep -qE '^\s*[\[{]' public/90d.json || { echo "90d not JSON:"; head -n 60 public/90d.json; exit 1; }
 
-      # DASHBOARD (full metrics object)
+      # Dashboard (object)
       - name: Fetch dashboard summary
         run: |
           set -e
@@ -108,14 +108,12 @@ jobs:
 
       - name: Quick preview of files
         run: |
-          echo "---- health.json ----"; head -n 2 public/health.json || true
           echo "---- latest.json ----"; head -n 2 public/latest.json || true
           echo "---- 24h.json    ----"; head -n 2 public/last-24h.json || true
           echo "---- ytd.json    ----"; head -n 2 public/ytd.json || true
           echo "---- 90d.json    ----"; head -n 2 public/90d.json || true
           echo "---- dashboard   ----"; head -n 20 public/dashboard.json || true
 
-      # Commit JSONs to gh-pages (for raw.githubusercontent.com)
       - name: Commit to gh-pages branch
         run: |
           set -e
@@ -133,7 +131,6 @@ jobs:
           git commit -m "Update mirrored data" || echo "No changes to commit"
           git push origin gh-pages
 
-      # Publish to GitHub Pages (nice human-friendly site; optional but handy)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
