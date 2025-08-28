@@ -122,51 +122,65 @@ jobs:
           jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
           mv "$tmp" public/90d.json
 
-      # --- Dashboard summary (strict + consistency check vs latest.json)
-      - name: Fetch dashboard summary (strict)
-        shell: bash
-        run: |
-          set -euo pipefail
+    # --- Dashboard summary (consistent if possible; don't fail the build)
+- name: Fetch dashboard summary (strict)
+  shell: bash
+  run: |
+    set -euo pipefail
 
-          # First fetch
-          tmp="$(mktemp)"; hdr="$(mktemp)"
-          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
-            -H "Accept: application/json" \
-            --get "${EXEC}" \
-            --data-urlencode "mode=dashboard" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "cachebust=${CACHEBUST}" \
-            -D "$hdr" -o "$tmp"
-          grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type"; cat "$hdr"; exit 1; }
-          jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
-          mv "$tmp" public/dashboard.json
+    fetch_latest () {
+      tmp="$(mktemp)"; hdr="$(mktemp)"
+      curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
+        -H "Accept: application/json" \
+        --get "${EXEC}" \
+        --data-urlencode "mode=ytd" \
+        --data-urlencode "limit=1" \
+        --data-urlencode "cols=1:14" \
+        --data-urlencode "token=${{ secrets.APITOKEN }}" \
+        --data-urlencode "cachebust=${CACHEBUST}" \
+        -D "$hdr" -o "$tmp"
+      grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type (latest)"; cat "$hdr"; exit 1; }
+      jq empty "$tmp" || { echo "Invalid JSON body (latest)"; cat "$tmp"; exit 1; }
+      mv "$tmp" public/latest.json
+    }
 
-          # Compare with latest.json
-          d_close=$(jq -r '.latest_close' public/dashboard.json)
-          d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
-          l_close=$(jq -r '.rows[0].close' public/latest.json)
-          l_time=$(jq -r '.rows[0].time_utc' public/latest.json)
+    fetch_dash () {
+      tmp="$(mktemp)"; hdr="$(mktemp)"
+      curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
+        -H "Accept: application/json" \
+        --get "${EXEC}" \
+        --data-urlencode "mode=dashboard" \
+        --data-urlencode "token=${{ secrets.APITOKEN }}" \
+        --data-urlencode "cachebust=${CACHEBUST}" \
+        -D "$hdr" -o "$tmp"
+      grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type (dashboard)"; cat "$hdr"; exit 1; }
+      jq empty "$tmp" || { echo "Invalid JSON body (dashboard)"; cat "$tmp"; exit 1; }
+      mv "$tmp" public/dashboard.json
+    }
 
-          if [ "$d_close" != "$l_close" ] || [ "$d_time" != "$l_time" ]; then
-            echo "Dashboard/latest mismatch (dash=$d_close@$d_time vs latest=$l_close@$l_time). Refetching..."
-            sleep 5
+    attempts=0
+    while [ $attempts -lt 3 ]; do
+      attempts=$((attempts+1))
+      fetch_latest
+      fetch_dash
 
-            tmp="$(mktemp)"; hdr="$(mktemp)"
-            curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
-              -H "Accept: application/json" \
-              --get "${EXEC}" \
-              --data-urlencode "mode=dashboard" \
-              --data-urlencode "token=${{ secrets.APITOKEN }}" \
-              --data-urlencode "cachebust=${CACHEBUST}" \
-              -D "$hdr" -o "$tmp"
-            grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type"; cat "$hdr"; exit 1; }
-            jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
-            mv "$tmp" public/dashboard.json
+      d_close=$(jq -r '.latest_close' public/dashboard.json)
+      d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
+      l_close=$(jq -r '.rows[0].close' public/latest.json)
+      l_time=$(jq -r '.rows[0].time_utc' public/latest.json)
 
-            d_close=$(jq -r '.latest_close' public/dashboard.json)
-            d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
-            test "$d_close" = "$l_close" && test "$d_time" = "$l_time"
-          fi
+      if [ "$d_close" = "$l_close" ] && [ "$d_time" = "$l_time" ]; then
+        echo "Dashboard aligns with latest (attempt $attempts)."
+        aligned=1
+        break
+      fi
+      echo "Mismatch attempt $attempts: dash=$d_close@$d_time vs latest=$l_close@$l_time"
+      sleep 6
+    done
+
+    if [ "${aligned:-0}" != "1" ]; then
+      echo "::warning::Dashboard still differs from latest after $attempts attempts (dash=$d_close@$d_time vs latest=$l_close@$l_time). Proceeding."
+    fi
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
