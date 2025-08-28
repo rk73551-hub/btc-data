@@ -122,22 +122,43 @@ jobs:
           jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
           mv "$tmp" public/90d.json
 
-      # --- Dashboard summary (full-by-default from Api.gs)
-      - name: Fetch dashboard summary (strict)
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmp="$(mktemp)"; hdr="$(mktemp)"
-          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
-            -H "Accept: application/json" \
-            --get "${EXEC}" \
-            --data-urlencode "mode=dashboard" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            --data-urlencode "cachebust=${CACHEBUST}" \
-            -D "$hdr" -o "$tmp"
-          grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type"; cat "$hdr"; exit 1; }
-          jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
-          mv "$tmp" public/dashboard.json
+     # --- Dashboard summary (strict + consistency check vs latest.json)
+- name: Fetch dashboard summary (strict)
+  shell: bash
+  run: |
+    set -euo pipefail
+
+    fetch() {
+      tmp="$(mktemp)"; hdr="$(mktemp)"
+      curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
+        -H "Accept: application/json" \
+        --get "${EXEC}" \
+        --data-urlencode "mode=dashboard" \
+        --data-urlencode "token=${{ secrets.APITOKEN }}" \
+        --data-urlencode "cachebust=${CACHEBUST}" \
+        -D "$hdr" -o "$tmp"
+      grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type"; cat "$hdr"; exit 1; }
+      jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
+      mv "$tmp" public/dashboard.json
+    }
+
+    # 1) initial fetch
+    fetch
+
+    # 2) compare with latest.json; if mismatch, wait and re-fetch once
+    d_close=$(jq -r '.latest_close' public/dashboard.json)
+    d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
+    l_close=$(jq -r '.rows[0].close' public/latest.json)
+    l_time=$(jq -r '.rows[0].time_utc' public/latest.json)
+
+    if [ "$d_close" != "$l_close" ] || [ "$d_time" != "$l_time" ]; then
+      echo "Dashboard/latest mismatch (dash=$d_close@$d_time vs latest=$l_close@$l_time). Refetching..."
+      sleep 5
+      fetch
+      d_close=$(jq -r '.latest_close' public/dashboard.json)
+      d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
+      test "$d_close" = "$l_close" && test "$d_time" = "$l_time"
+    fi
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
