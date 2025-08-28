@@ -16,6 +16,7 @@ concurrency:
 
 env:
   EXEC: https://script.google.com/macros/s/AKfycbzsDjd0fYUiOLnEYnFkPETvXg4VdLXIqSXX5tUNB1oeJ8o2EqzXXjAVezaNXKMf0lWTHQ/exec
+  CACHEBUST: ${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}
 
 jobs:
   build:
@@ -27,64 +28,83 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      # --- Sanity: health must return JSON
-      - name: Sanity ping (health)
+      - name: Define robust fetch helper
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
           set -e
-          curl -sSfL --get "$EXEC" \
-            --data-urlencode "mode=health" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/health.json
-          grep -qE '^\s*[\[{]' public/health.json || (echo "Health not JSON:"; head -n 50 public/health.json; exit 1)
+          cat > fetch_json.sh <<'BASH'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          # Usage: fetch_json OUTFILE key1=value1 key2=value2 ...
+          # Always adds token + cachebust; validates content-type and JSON before writing OUTFILE.
+          outfile="$1"; shift
+          tmp="$(mktemp)"
+          hdr="$(mktemp)"
+          args=()
+          for kv in "$@"; do
+            args+=( --data-urlencode "$kv" )
+          done
+          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
+            -H "Accept: application/json" \
+            --get "$EXEC" \
+            --data-urlencode "token=${APITOKEN}" \
+            --data-urlencode "cachebust=${CACHEBUST}" \
+            "${args[@]}" \
+            -D "$hdr" -o "$tmp"
+          # Content-Type must be JSON
+          grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON content-type:"; cat "$hdr"; exit 1; }
+          # Body must parse as JSON
+          python - "$tmp" <<'PY'
+import sys, json
+with open(sys.argv[1], 'rb') as f:
+    json.load(f)
+PY
+          mv "$tmp" "public/$outfile"
+          BASH
+          chmod +x fetch_json.sh
+
+      # --- Sanity: health must return JSON
+      - name: Sanity ping (health)
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
+        run: |
+          ./fetch_json.sh health.json mode=health
 
       # --- Latest row (limit 1), include A:N via cols=1:14
       - name: Fetch latest row
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
-          curl -sSL --get "$EXEC" \
-            --data-urlencode "mode=ytd" \
-            --data-urlencode "limit=1" \
-            --data-urlencode "cols=1:14" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/latest.json || echo '{}' > public/latest.json
+          ./fetch_json.sh latest.json mode=ytd limit=1 cols=1:14
 
       # --- Last 24h (limit 24), include A:N
       - name: Fetch last 24h
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
-          curl -sSL --get "$EXEC" \
-            --data-urlencode "mode=ytd" \
-            --data-urlencode "limit=24" \
-            --data-urlencode "cols=1:14" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/last-24h.json || echo '[]' > public/last-24h.json
+          ./fetch_json.sh last-24h.json mode=ytd limit=24 cols=1:14
 
       # --- YTD since Jan 1, include A:N
       - name: Fetch YTD
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
-          curl -sSL --get "$EXEC" \
-            --data-urlencode "mode=ytd" \
-            --data-urlencode "since=2025-01-01T00:00:00Z" \
-            --data-urlencode "limit=20000" \
-            --data-urlencode "cols=1:14" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/ytd.json || echo '[]' > public/ytd.json
+          ./fetch_json.sh ytd.json mode=ytd since=2025-01-01T00:00:00Z limit=20000 cols=1:14
 
       # --- 90d dataset (A:N)
       - name: Fetch 90d dataset
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
-          curl -sSL --get "$EXEC" \
-            --data-urlencode "mode=90d" \
-            --data-urlencode "limit=2160" \
-            --data-urlencode "cols=1:14" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/90d.json || echo '{"rows":[]}' > public/90d.json
+          ./fetch_json.sh 90d.json mode=90d limit=2160 cols=1:14
 
-      # --- Dashboard summary
-      - name: Fetch dashboard summary
+      # --- Dashboard summary (full-by-default from Api.gs)
+      - name: Fetch dashboard summary (strict)
+        env:
+          APITOKEN: ${{ secrets.APITOKEN }}
         run: |
-          curl -sSL --get "$EXEC" \
-            --data-urlencode "mode=dashboard" \
-            --data-urlencode "token=${{ secrets.APITOKEN }}" \
-            -o public/dashboard.json || echo '{"ok":false}' > public/dashboard.json
+          ./fetch_json.sh dashboard.json mode=dashboard
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
@@ -104,7 +124,7 @@ jobs:
           git add latest.json last-24h.json ytd.json 90d.json dashboard.json timestamp.txt
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git commit -m "Update mirrored data (A:N via cols=1:14)" || echo "No changes to commit"
+          git commit -m "Update mirrored data (validated JSON)" || echo "No changes to commit"
           git push origin gh-pages
 
       # Also publish to Pages (artifact = /public)
