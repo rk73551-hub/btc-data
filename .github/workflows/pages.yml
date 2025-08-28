@@ -28,89 +28,81 @@ jobs:
       - name: Create public dir
         run: mkdir -p public
 
-      - name: Define robust fetch helper
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+      # --- Helper: function to fetch, validate, and write JSON
+      - name: Define helper (bash function in shell)
+        shell: bash
         run: |
-          set -e
-          cat > fetch_json.sh <<'BASH'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          # Usage: fetch_json OUTFILE key1=value1 key2=value2 ...
-          # Always adds token + cachebust; validates content-type and JSON before writing OUTFILE.
-          outfile="$1"; shift
-          tmp="$(mktemp)"
-          hdr="$(mktemp)"
-          args=()
-          for kv in "$@"; do
-            args+=( --data-urlencode "$kv" )
-          done
-          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
-            -H "Accept: application/json" \
-            --get "$EXEC" \
-            --data-urlencode "token=${APITOKEN}" \
-            --data-urlencode "cachebust=${CACHEBUST}" \
-            "${args[@]}" \
-            -D "$hdr" -o "$tmp"
-          # Content-Type must be JSON
-          grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON content-type:"; cat "$hdr"; exit 1; }
-          # Body must parse as JSON
-          python - "$tmp" <<'PY'
-import sys, json
-with open(sys.argv[1], 'rb') as f:
-    json.load(f)
-PY
-          mv "$tmp" "public/$outfile"
-          BASH
-          chmod +x fetch_json.sh
+          fetch_json () {
+            out="$1"; shift
+            tmp="$(mktemp)"; hdr="$(mktemp)"
+            curl -sS -L --fail --retry 6 --retry-all-errors --max-time 60 \
+              -H "Accept: application/json" \
+              --get "${EXEC}" \
+              --data-urlencode "token=${{ secrets.APITOKEN }}" \
+              --data-urlencode "cachebust=${CACHEBUST}" \
+              "$@" -D "$hdr" -o "$tmp"
+            grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type"; cat "$hdr"; exit 1; }
+            jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
+            mv "$tmp" "public/$out"
+          }
+          export -f fetch_json
 
       # --- Sanity: health must return JSON
       - name: Sanity ping (health)
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh health.json mode=health
+          fetch_json health.json --data-urlencode mode=health
 
       # --- Latest row (limit 1), include A:N via cols=1:14
       - name: Fetch latest row
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh latest.json mode=ytd limit=1 cols=1:14
+          fetch_json latest.json \
+            --data-urlencode mode=ytd \
+            --data-urlencode limit=1 \
+            --data-urlencode cols=1:14
 
       # --- Last 24h (limit 24), include A:N
       - name: Fetch last 24h
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh last-24h.json mode=ytd limit=24 cols=1:14
+          fetch_json last-24h.json \
+            --data-urlencode mode=ytd \
+            --data-urlencode limit=24 \
+            --data-urlencode cols=1:14
 
       # --- YTD since Jan 1, include A:N
       - name: Fetch YTD
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh ytd.json mode=ytd since=2025-01-01T00:00:00Z limit=20000 cols=1:14
+          fetch_json ytd.json \
+            --data-urlencode mode=ytd \
+            --data-urlencode since=2025-01-01T00:00:00Z \
+            --data-urlencode limit=20000 \
+            --data-urlencode cols=1:14
 
       # --- 90d dataset (A:N)
       - name: Fetch 90d dataset
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh 90d.json mode=90d limit=2160 cols=1:14
+          fetch_json 90d.json \
+            --data-urlencode mode=90d \
+            --data-urlencode limit=2160 \
+            --data-urlencode cols=1:14
 
       # --- Dashboard summary (full-by-default from Api.gs)
       - name: Fetch dashboard summary (strict)
-        env:
-          APITOKEN: ${{ secrets.APITOKEN }}
+        shell: bash
         run: |
-          ./fetch_json.sh dashboard.json mode=dashboard
+          fetch_json dashboard.json \
+            --data-urlencode mode=dashboard
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
       # Commit JSONs to gh-pages
       - name: Prepare gh-pages branch
+        shell: bash
         run: |
           set -e
           git fetch origin gh-pages || true
