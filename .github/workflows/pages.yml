@@ -83,7 +83,7 @@ jobs:
           jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
           mv "$tmp" public/last-24h.json
 
-      # --- YTD since Jan 1, include A:N
+      # --- YTD since Jan 1 (current year), include A:N
       - name: Fetch YTD
         shell: bash
         run: |
@@ -122,6 +122,46 @@ jobs:
           jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
           mv "$tmp" public/90d.json
 
+      # --- 2023 archive (client-side filter with jq; requires backfill)
+      - name: Build 2023 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 90 \
+            -H "Accept: application/json" \
+            --get "${EXEC}" \
+            --data-urlencode "mode=ytd" \
+            --data-urlencode "since=2023-01-01T00:00:00Z" \
+            --data-urlencode "limit=30000" \
+            --data-urlencode "cols=1:14" \
+            --data-urlencode "token=${{ secrets.APITOKEN }}" \
+            --data-urlencode "cachebust=${CACHEBUST}" \
+            -o public/_tmp2023.json
+          jq '{rows: [ .rows[]
+               | select(.time_utc >= "2023-01-01T00:00:00Z" and .time_utc < "2024-01-01T00:00:00.000Z") ] }' \
+            public/_tmp2023.json > public/2023.json
+          rm -f public/_tmp2023.json
+
+      # --- 2024 archive
+      - name: Build 2024 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sS -L --fail --retry 6 --retry-all-errors --max-time 90 \
+            -H "Accept: application/json" \
+            --get "${EXEC}" \
+            --data-urlencode "mode=ytd" \
+            --data-urlencode "since=2024-01-01T00:00:00Z" \
+            --data-urlencode "limit=30000" \
+            --data-urlencode "cols=1:14" \
+            --data-urlencode "token=${{ secrets.APITOKEN }}" \
+            --data-urlencode "cachebust=${CACHEBUST}" \
+            -o public/_tmp2024.json
+          jq '{rows: [ .rows[]
+               | select(.time_utc >= "2024-01-01T00:00:00Z" and .time_utc < "2025-01-01T00:00:00.000Z") ] }' \
+            public/_tmp2024.json > public/2024.json
+          rm -f public/_tmp2024.json
+
       # --- Dashboard summary anchored to the latest candle (~atomic snapshot)
       - name: Fetch dashboard summary (anchored)
         shell: bash
@@ -140,7 +180,6 @@ jobs:
           grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type (dashboard)"; cat "$hdr"; exit 1; }
           jq empty "$tmp" || { echo "Invalid JSON body (dashboard)"; cat "$tmp"; exit 1; }
           mv "$tmp" public/dashboard.json
-
           # Assert equality with latest.json to guarantee atomicity
           d_close=$(jq -r '.latest_close' public/dashboard.json)
           d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
@@ -163,11 +202,11 @@ jobs:
             git checkout --orphan gh-pages
             git reset --hard
           fi
-          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/timestamp.txt .
-          git add latest.json last-24h.json ytd.json 90d.json dashboard.json timestamp.txt
+          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/2023.json public/2024.json public/timestamp.txt .
+          git add latest.json last-24h.json ytd.json 90d.json dashboard.json 2023.json 2024.json timestamp.txt
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git commit -m "Update mirrored data (anchored dashboard, validated JSON)" || echo "No changes to commit"
+          git commit -m "Update mirrored data (anchored dashboard + yearly archives)" || echo "No changes to commit"
           git push origin gh-pages
 
       # Also publish to Pages (artifact = /public)
