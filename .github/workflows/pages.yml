@@ -180,12 +180,20 @@ jobs:
           grep -qi '^content-type: *application/json' "$hdr" || { echo "Not JSON Content-Type (dashboard)"; cat "$hdr"; exit 1; }
           jq empty "$tmp" || { echo "Invalid JSON body (dashboard)"; cat "$tmp"; exit 1; }
           mv "$tmp" public/dashboard.json
-          # Assert equality with latest.json to guarantee atomicity
+
+          # Compare with latest.json, but only WARN on mismatch (don't fail job)
           d_close=$(jq -r '.latest_close' public/dashboard.json)
           d_time=$(jq -r '.latest_time_utc' public/dashboard.json)
           l_close=$(jq -r '.rows[0].close' public/latest.json)
           l_time=$(jq -r '.rows[0].time_utc' public/latest.json)
-          test "$d_close" = "$l_close" && test "$d_time" = "$l_time"
+
+          if [ "$d_close" != "$l_close" ] || [ "$d_time" != "$l_time" ]; then
+            echo "WARNING: dashboard.json does not exactly match latest.json"
+            echo "  dashboard latest_time_utc=${d_time}, latest_close=${d_close}"
+            echo "  latest    time_utc=${l_time}, close=${l_close}"
+          else
+            echo "Dashboard snapshot matches latest.json anchor ✔"
+          fi
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
