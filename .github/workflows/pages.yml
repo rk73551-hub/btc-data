@@ -64,6 +64,15 @@ jobs:
           jq empty "$tmp" || { echo "Invalid JSON body"; cat "$tmp"; exit 1; }
           mv "$tmp" public/latest.json
 
+      - name: DEBUG: print latest time fetched from API
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "latest_time_utc from fetched public/latest.json:"
+          jq -r '.rows[0].time_utc' public/latest.json
+          echo "latest_close from fetched public/latest.json:"
+          jq -r '.rows[0].close' public/latest.json
+
       # --- Last 24h (limit 24), include A:N
       - name: Fetch last 24h
         shell: bash
@@ -198,6 +207,20 @@ jobs:
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
+      - name: Write build meta (debug)
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg run_id "${{ github.run_id }}" \
+            --arg run_number "${{ github.run_number }}" \
+            --arg run_attempt "${{ github.run_attempt }}" \
+            --arg cachebust "${CACHEBUST}" \
+            --arg exec "${EXEC}" \
+            --arg built_utc "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            '{run_id:$run_id, run_number:$run_number, run_attempt:$run_attempt, cachebust:$cachebust, exec:$exec, built_utc:$built_utc}' \
+            > public/build_meta.json
+
       # Commit JSONs to gh-pages
       - name: Prepare gh-pages branch
         shell: bash
@@ -210,8 +233,8 @@ jobs:
             git checkout --orphan gh-pages
             git reset --hard
           fi
-          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/2023.json public/2024.json public/timestamp.txt .
-          git add latest.json last-24h.json ytd.json 90d.json dashboard.json 2023.json 2024.json timestamp.txt
+          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/2023.json public/2024.json public/timestamp.txt public/build_meta.json .
+          git add latest.json last-24h.json ytd.json 90d.json dashboard.json 2023.json 2024.json timestamp.txt build_meta.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git commit -m "Update mirrored data (anchored dashboard + yearly archives)" || echo "No changes to commit"
