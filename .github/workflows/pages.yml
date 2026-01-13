@@ -73,6 +73,7 @@ jobs:
           echo "latest_close:"
           jq -r '.rows[0].close' public/latest.json
 
+        
       # --- Last 24h (limit 24), include A:N
       - name: Fetch last 24h
         shell: bash
