@@ -1,3 +1,4 @@
+import os
 import json
 import requests
 import pandas as pd
@@ -82,6 +83,8 @@ def main():
     out["etf_flows"] = fetch_etf_flows()
 
     # Write output
+    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+
     with open(OUT_PATH, "w") as f:
         json.dump(out, f, indent=2)
 
