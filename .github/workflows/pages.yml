@@ -39,6 +39,10 @@ jobs:
         run: |
           python3 scripts/fetch_tier1.py
 
+      - name: Build compact report.json
+        shell: bash
+        run: |
+          python3 scripts/build_report.py
 
       # --- Sanity: health must return JSON
       - name: Sanity ping (health)
@@ -240,7 +244,6 @@ jobs:
 
           git add latest.json last-24h.json ytd.json 90d.json dashboard.json insights_local.json report.json 2023.json 2024.json timestamp.txt
 
-          git config user.name "github-actions"
           git config user.email "actions@github.com"
           git commit -m "Update mirrored data (anchored dashboard + report bundle)" || echo "No changes to commit"
           git push origin gh-pages
