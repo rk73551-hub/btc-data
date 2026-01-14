@@ -25,6 +25,11 @@ jobs:
       - name: Checkout repository (default branch)
         uses: actions/checkout@v4
 
+      - name: Fetch Tier 1 market data
+        shell: bash
+        run: |
+          python3 scripts/fetch_tier1.py
+
       - name: Create public dir
         run: mkdir -p public
 
