@@ -235,6 +235,7 @@ jobs:
           git commit -m "Update mirrored data (anchored dashboard + yearly archives)" || echo "No changes to commit"
           git push origin gh-pages
 
+
       # Also publish to Pages (artifact = /public)
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
