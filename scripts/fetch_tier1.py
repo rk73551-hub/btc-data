@@ -1,126 +1,188 @@
 #!/usr/bin/env python3
-import os
 import json
+import os
 import time
 from datetime import datetime, timezone
-from io import StringIO
 
 import requests
-import pandas as pd
 
 OUT_PATH = "public/insights_local.json"
 
-# Farside page that contains the US spot BTC ETF flow table
-FARSIDE_BTC_URL = "https://farside.co.uk/btc/"
-
-# Coinbase spot price endpoint (simple + reliable)
-COINBASE_SPOT_URL = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
-
-# Use a realistic browser UA (helps avoid basic bot blocks)
-DEFAULT_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/121.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Connection": "keep-alive",
-}
-
+# ---- helpers ----
 def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
-def write_json(path: str, obj: dict):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, ensure_ascii=False)
+def ensure_parent_dir(path: str):
+    d = os.path.dirname(path)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
 
-def safe_get(url: str, headers=None, timeout=20, retries=2, backoff=2.0):
-    headers = headers or {}
-    last_exc = None
-    for i in range(retries + 1):
-        try:
-            r = requests.get(url, headers=headers, timeout=timeout)
-            return r
-        except Exception as e:
-            last_exc = e
-            if i < retries:
-                time.sleep(backoff * (i + 1))
-    raise last_exc
+def http_get_json(url: str, headers=None, timeout=20):
+    r = requests.get(url, headers=headers or {}, timeout=timeout)
+    r.raise_for_status()
+    return r.json()
 
-def fetch_coinbase_spot():
-    try:
-        r = safe_get(COINBASE_SPOT_URL, headers={"Accept": "application/json", **DEFAULT_HEADERS})
-        r.raise_for_status()
-        j = r.json()
-        amt = float(j["data"]["amount"])
-        return {
-            "source": "coinbase_spot",
-            "btc_usd": amt,
-            "ts_utc": utc_now_iso(),
-            "raw": j,
-        }
-    except Exception as e:
-        return {
-            "error": str(e),
-        }
+def http_get_text(url: str, headers=None, timeout=20):
+    r = requests.get(url, headers=headers or {}, timeout=timeout)
+    r.raise_for_status()
+    return r.text
 
-def _parse_farside_tables_from_html(html: str):
-    # Parse all tables from HTML string
-    tables = pd.read_html(StringIO(html))
-    return tables
+# ---- sources ----
 
-def fetch_etf_flows():
+def fetch_coinbase_spot_btc_usd():
     """
-    Attempts to fetch Farside BTC ETF flow table.
-    Writes a compact, resilient output:
-      - status: ok/unavailable
-      - if ok: includes date + table preview
+    Coinbase spot price (public, no key)
     """
-    try:
-        r = safe_get(FARSIDE_BTC_URL, headers=DEFAULT_HEADERS, timeout=25, retries=2)
-        if r.status_code != 200:
-            return {"status": "unavailable", "reason": f"HTTP {r.status_code}"}
+    url = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
+    j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
+    amount = float(j["data"]["amount"])
+    return {
+        "source": "coinbase_spot",
+        "btc_usd": amount,
+        "ts_utc": utc_now_iso(),
+        "raw": j,
+    }
 
-        html = r.text
-        tables = _parse_farside_tables_from_html(html)
-        if not tables:
-            return {"status": "unavailable", "reason": "no_tables_found"}
+def fetch_yahoo_chart_last(symbol: str):
+    """
+    Yahoo Finance chart endpoint (public, no key)
+    Returns last close and prior close when available.
+    """
+    # 5d gives enough points even if markets closed recently
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1h"
+    j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
+    res = j.get("chart", {}).get("result", [])
+    if not res:
+        raise RuntimeError("yahoo_no_result")
 
-        # Heuristic: pick the largest table (usually the flows table)
-        flows = max(tables, key=lambda df: df.shape[0] * df.shape[1])
+    r0 = res[0]
+    meta = r0.get("meta", {})
+    ind = r0.get("indicators", {}).get("quote", [])
+    if not ind:
+        raise RuntimeError("yahoo_no_indicators")
 
-        # Clean columns a bit
-        flows.columns = [str(c).strip() for c in flows.columns]
-        flows = flows.copy()
+    closes = ind[0].get("close", []) or []
+    # find last non-null close
+    last = None
+    prev = None
+    for v in reversed(closes):
+        if v is not None:
+            last = float(v)
+            break
+    if last is None:
+        raise RuntimeError("yahoo_no_close")
 
-        # Keep it small so your JSON doesn't explode
-        preview_rows = min(20, len(flows))
-        preview = flows.head(preview_rows).to_dict(orient="records")
+    # find prev non-null close before last
+    found_last = False
+    for v in reversed(closes):
+        if v is None:
+            continue
+        if not found_last:
+            # this is last
+            found_last = True
+            continue
+        prev = float(v)
+        break
 
-        return {
-            "status": "ok",
-            "source": "farside",
-            "fetched_utc": utc_now_iso(),
-            "table_shape": [int(flows.shape[0]), int(flows.shape[1])],
-            "columns": flows.columns.tolist(),
-            "preview": preview,
-        }
+    return {
+        "symbol": symbol,
+        "last": last,
+        "prev": prev,
+        "currency": meta.get("currency"),
+        "exchangeName": meta.get("exchangeName"),
+        "instrumentType": meta.get("instrumentType"),
+        "ts_utc": utc_now_iso(),
+    }
 
-    except Exception as e:
-        # Most common here: still blocked, or table parsing changes
-        return {"status": "unavailable", "reason": str(e)}
+def fetch_binance_btc_funding():
+    """
+    Binance USDT-m perpetual funding (public, no key)
+    Returns lastFundingRate and mark/index.
+    """
+    # premiumIndex includes lastFundingRate
+    url = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
+    j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
+    # lastFundingRate is a string like "0.00010000" (per funding interval)
+    rate = float(j.get("lastFundingRate")) if j.get("lastFundingRate") is not None else None
+    mark = float(j.get("markPrice")) if j.get("markPrice") is not None else None
+    index = float(j.get("indexPrice")) if j.get("indexPrice") is not None else None
+    return {
+        "source": "binance_futures",
+        "symbol": "BTCUSDT",
+        "lastFundingRate": rate,
+        "markPrice": mark,
+        "indexPrice": index,
+        "ts_utc": utc_now_iso(),
+        "raw": j,
+    }
+
+def fetch_etf_flows_stub():
+    """
+    Keep your current behavior: ETF flows blocked (403).
+    Don’t break the pipeline — just report unavailable.
+    """
+    return {
+        "status": "unavailable",
+        "reason": "HTTP 403",
+    }
+
+# ---- main ----
 
 def main():
     out = {
         "generated_utc": utc_now_iso(),
         "tier": "tier1",
-        "price": fetch_coinbase_spot(),
-        "etf_flows": fetch_etf_flows(),
     }
 
-    write_json(OUT_PATH, out)
+    # BTC spot
+    try:
+        out["price"] = fetch_coinbase_spot_btc_usd()
+    except Exception as e:
+        out["price"] = {"error": str(e)}
+
+    # Macro (Yahoo)
+    macro = {}
+    # DXY
+    try:
+        macro["dxy"] = fetch_yahoo_chart_last("%5EDXY")  # ^DXY
+    except Exception as e:
+        macro["dxy"] = {"error": str(e)}
+    # US10Y (Yahoo: ^TNX is yield*10)
+    try:
+        tnx = fetch_yahoo_chart_last("%5ETNX")  # ^TNX
+        # Convert to percent yield
+        if isinstance(tnx.get("last"), (int, float)):
+            tnx["last_yield_pct"] = tnx["last"] / 10.0
+        if isinstance(tnx.get("prev"), (int, float)):
+            tnx["prev_yield_pct"] = tnx["prev"] / 10.0
+        macro["us10y"] = tnx
+    except Exception as e:
+        macro["us10y"] = {"error": str(e)}
+    # Futures: ES and NQ
+    try:
+        macro["es_futures"] = fetch_yahoo_chart_last("ES=F")
+    except Exception as e:
+        macro["es_futures"] = {"error": str(e)}
+    try:
+        macro["nq_futures"] = fetch_yahoo_chart_last("NQ=F")
+    except Exception as e:
+        macro["nq_futures"] = {"error": str(e)}
+
+    out["macro"] = macro
+
+    # Funding
+    try:
+        out["funding"] = fetch_binance_btc_funding()
+    except Exception as e:
+        out["funding"] = {"error": str(e)}
+
+    # ETF flows (still blocked)
+    out["etf_flows"] = fetch_etf_flows_stub()
+
+    ensure_parent_dir(OUT_PATH)
+    with open(OUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2, sort_keys=False)
+
     print(f"Wrote {OUT_PATH}")
 
 if __name__ == "__main__":
