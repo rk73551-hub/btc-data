@@ -224,7 +224,7 @@ jobs:
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
-      # Commit JSONs to gh-pages
+            # Commit JSONs to gh-pages
       - name: Prepare gh-pages branch
         shell: bash
         run: |
@@ -236,6 +236,16 @@ jobs:
             git checkout --orphan gh-pages
             git reset --hard
           fi
+
+          cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/insights_local.json public/report.json public/2023.json public/2024.json public/timestamp.txt .
+
+          git add latest.json last-24h.json ytd.json 90d.json dashboard.json insights_local.json report.json 2023.json 2024.json timestamp.txt
+
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git commit -m "Update mirrored data (anchored dashboard + report bundle)" || echo "No changes to commit"
+          git push origin gh-pages
+
       
           # Copy outputs from /public to the root of gh-pages
           cp -f public/latest.json public/last-24h.json public/ytd.json public/90d.json public/dashboard.json public/insights_local.json public/2023.json public/2024.json public/timestamp.txt .
