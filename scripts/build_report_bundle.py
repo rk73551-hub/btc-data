@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 
 PUBLIC_DIR = "public"
 
-# Inputs we expect to already exist in public/
 FILES = {
     "latest": "latest.json",
     "last-24h": "last-24h.json",
@@ -19,9 +18,6 @@ FILES = {
 }
 
 OUT_SMALL = os.path.join(PUBLIC_DIR, "report.json")
-OUT_FULL = os.path.join(PUBLIC_DIR, "report_full.json")
-
-# --- helpers ---
 
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -35,8 +31,17 @@ def write_json(path: str, obj: Any) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(obj, f, indent=2, sort_keys=False)
 
-def is_num(x: Any) -> bool:
-    return isinstance(x, (int, float)) and x == x
+def file_exists(path: str) -> bool:
+    try:
+        return os.path.exists(path) and os.path.getsize(path) > 0
+    except Exception:
+        return False
+
+def rows_from_dataset(ds: Any) -> List[Dict[str, Any]]:
+    if not isinstance(ds, dict):
+        return []
+    rows = ds.get("rows")
+    return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
 
 def safe_float(x: Any) -> Optional[float]:
     try:
@@ -51,87 +56,62 @@ def safe_float(x: Any) -> Optional[float]:
     except Exception:
         return None
 
-def rows_from_dataset(ds: Any) -> List[Dict[str, Any]]:
+def strip_raw_recursive(obj: Any) -> Any:
     """
-    Your JSONs are shaped like:
-      { ok:true, count:n, rows:[{...}] }
+    Recursively remove any key named 'raw' anywhere in the object.
+    This is what makes insights_local (and sometimes other feeds) explode in size.
     """
-    if not isinstance(ds, dict):
-        return []
-    rows = ds.get("rows")
-    if isinstance(rows, list):
-        return [r for r in rows if isinstance(r, dict)]
-    return []
+    if isinstance(obj, dict):
+        out = {}
+        for k, v in obj.items():
+            if k == "raw":
+                continue
+            out[k] = strip_raw_recursive(v)
+        return out
+    if isinstance(obj, list):
+        return [strip_raw_recursive(x) for x in obj]
+    return obj
 
-def last_n_rows(ds: Any, n: int) -> List[Dict[str, Any]]:
-    r = rows_from_dataset(ds)
-    return r[-n:] if len(r) > n else r
-
-def compute_basic_stats(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-    closes = [safe_float(r.get("close")) for r in rows]
-    closes = [c for c in closes if c is not None]
-    if not closes:
-        return {"count": len(rows), "close_min": None, "close_max": None, "close_last": None, "close_change_pct": None}
-
-    close_min = min(closes)
-    close_max = max(closes)
-    close_last = closes[-1]
-    close_first = closes[0]
-    chg_pct = None
-    if close_first and close_first != 0:
-        chg_pct = ((close_last - close_first) / close_first) * 100.0
-
-    return {
-        "count": len(rows),
-        "close_min": round(close_min, 2),
-        "close_max": round(close_max, 2),
-        "close_last": round(close_last, 2),
-        "close_change_pct": round(chg_pct, 2) if chg_pct is not None else None,
-    }
-
-def summarize_labels(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
-    labels = [(r.get("composite_label") or "").lower() for r in rows]
-    bull = sum(1 for l in labels if l == "bullish")
-    bear = sum(1 for l in labels if l == "bearish")
-    neu = len(labels) - bull - bear
-    return {"bullish": bull, "neutral": neu, "bearish": bear, "total": len(labels)}
-
-def dataset_summary(ds: Any, tail_rows: int = 72) -> Dict[str, Any]:
+def summarize_dataset(ds: Any) -> Dict[str, Any]:
     """
-    For large datasets, keep only:
-      - stats over full set
-      - label counts over full set
-      - last N rows (tail)
-      - latest timestamp
+    For big datasets: include only metadata + basic price stats + label counts.
+    NO rows included here (keeps report.json small).
     """
     rows = rows_from_dataset(ds)
-    tail = rows[-tail_rows:] if len(rows) > tail_rows else rows
+    closes = [safe_float(r.get("close")) for r in rows]
+    closes = [c for c in closes if c is not None]
 
-    latest_time_utc = None
-    if rows:
-        latest_time_utc = rows[-1].get("time_utc")
+    labels = [(r.get("composite_label") or "").lower() for r in rows]
+    bullish = sum(1 for l in labels if l == "bullish")
+    bearish = sum(1 for l in labels if l == "bearish")
+    neutral = len(labels) - bullish - bearish
+
+    latest_time_utc = rows[-1].get("time_utc") if rows else None
+
+    stats = {
+        "count": len(rows),
+        "latest_time_utc": latest_time_utc,
+        "close_last": round(closes[-1], 2) if closes else None,
+        "close_min": round(min(closes), 2) if closes else None,
+        "close_max": round(max(closes), 2) if closes else None,
+    }
+
+    if closes and closes[0] and closes[0] != 0:
+        stats["close_change_pct"] = round(((closes[-1] - closes[0]) / closes[0]) * 100.0, 2)
+    else:
+        stats["close_change_pct"] = None
 
     return {
         "ok": bool(ds.get("ok")) if isinstance(ds, dict) else None,
         "version": ds.get("version") if isinstance(ds, dict) else None,
-        "count": len(rows),
-        "latest_time_utc": latest_time_utc,
-        "stats": compute_basic_stats(rows),
-        "label_counts": summarize_labels(rows),
-        "tail_rows": tail,  # keeps it interpretable without being huge
+        "summary": stats,
+        "label_counts": {"bullish": bullish, "neutral": neutral, "bearish": bearish, "total": len(labels)},
     }
 
-def file_exists(path: str) -> bool:
-    try:
-        return os.path.exists(path) and os.path.getsize(path) > 0
-    except Exception:
-        return False
-
 def main() -> None:
-    # Validate inputs
-    missing = []
-    errors: Dict[str, str] = {}
     loaded: Dict[str, Any] = {}
+    missing: List[str] = []
+    errors: Dict[str, str] = {}
 
     for key, fname in FILES.items():
         path = os.path.join(PUBLIC_DIR, fname)
@@ -145,7 +125,6 @@ def main() -> None:
 
     ok = (len(missing) == 0 and len(errors) == 0)
 
-    # Always write something, even if not ok
     report: Dict[str, Any] = {
         "generated_utc": utc_now_iso(),
         "schema": "btc-data-report-v1",
@@ -157,43 +136,29 @@ def main() -> None:
         "data": {}
     }
 
-    # SMALL report payload design:
-    # - include full payload for: dashboard + insights_local (already small)
-    # - include full rows for: latest (1 row) and last-24h (24 rows)
-    # - summarize large sets: 90d, ytd, 2023, 2024 (with tail rows only)
+    # 1) dashboard is already compact and important
     if "dashboard" in loaded:
         report["data"]["dashboard"] = loaded["dashboard"]
+
+    # 2) insights_local: STRIP raw payloads so it stays small
     if "insights_local" in loaded:
-        report["data"]["insights_local"] = loaded["insights_local"]
+        report["data"]["insights_local"] = strip_raw_recursive(loaded["insights_local"])
 
+    # 3) latest (1 row) keep
     if "latest" in loaded:
-        report["data"]["latest"] = loaded["latest"]  # already tiny (count=1)
-    if "last-24h" in loaded:
-        report["data"]["last-24h"] = loaded["last-24h"]  # 24 rows
+        report["data"]["latest"] = loaded["latest"]
 
-    # Large datasets => summary + tail
+    # 4) last-24h (24 rows) keep
+    if "last-24h" in loaded:
+        report["data"]["last-24h"] = loaded["last-24h"]
+
+    # 5) Big datasets: summary ONLY (NO ROWS)
     for k in ["90d", "ytd", "2023", "2024"]:
         if k in loaded:
-            # Tail sizes: keep smaller for yearly archives
-            tail_n = 72 if k in ["90d", "ytd"] else 48
-            report["data"][k] = dataset_summary(loaded[k], tail_rows=tail_n)
+            report["data"][k] = summarize_dataset(loaded[k])
 
     write_json(OUT_SMALL, report)
-
-    # Optional: also write a full raw bundle if you want it (off by default)
-    # Enable by setting environment variable REPORT_FULL=1 in workflow.
-    if os.getenv("REPORT_FULL", "").strip() in ("1", "true", "TRUE", "yes", "YES"):
-        full = {
-            "generated_utc": report["generated_utc"],
-            "schema": "btc-data-report-full-v1",
-            "status": report["status"],
-            "data": loaded,
-        }
-        write_json(OUT_FULL, full)
-
     print(f"Wrote {OUT_SMALL}")
-    if os.path.exists(OUT_FULL):
-        print(f"Wrote {OUT_FULL}")
 
 if __name__ == "__main__":
     main()
