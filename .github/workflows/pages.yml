@@ -39,12 +39,6 @@ jobs:
         run: |
           python3 scripts/fetch_tier1.py
 
-      - name: Build single report bundle
-        shell: bash
-        run: |
-          python3 scripts/build_report_bundle.py
-
-
 
       # --- Sanity: health must return JSON
       - name: Sanity ping (health)
@@ -225,6 +219,11 @@ jobs:
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
 
             # Commit JSONs to gh-pages
+      - name: Build single report bundle
+        shell: bash
+        run: |
+          python3 scripts/build_report_bundle.py
+     
       - name: Prepare gh-pages branch
         shell: bash
         run: |
