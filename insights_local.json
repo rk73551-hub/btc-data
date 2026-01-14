@@ -1,17 +1,54 @@
 {
-  "generated_utc": "2026-01-14T15:56:22.420517+00:00",
+  "generated_utc": "2026-01-14T16:06:50.512571+00:00",
   "tier": "tier1",
   "price": {
     "source": "coinbase_spot",
-    "btc_usd": 96827.99,
-    "ts_utc": "2026-01-14T15:56:22.584325+00:00",
+    "btc_usd": 96933.995,
+    "ts_utc": "2026-01-14T16:06:50.580223+00:00",
     "raw": {
       "data": {
-        "amount": "96827.99",
+        "amount": "96933.995",
         "base": "BTC",
         "currency": "USD"
       }
     }
+  },
+  "macro": {
+    "dxy": {
+      "error": "yahoo_no_close"
+    },
+    "us10y": {
+      "symbol": "%5ETNX",
+      "last": 4.140000343322754,
+      "prev": 4.140000343322754,
+      "currency": "USD",
+      "exchangeName": "CGI",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-01-14T16:06:50.735576+00:00",
+      "last_yield_pct": 0.4140000343322754,
+      "prev_yield_pct": 0.4140000343322754
+    },
+    "es_futures": {
+      "symbol": "ES=F",
+      "last": 6934.25,
+      "prev": 6934.0,
+      "currency": "USD",
+      "exchangeName": "CME",
+      "instrumentType": "FUTURE",
+      "ts_utc": "2026-01-14T16:06:50.843483+00:00"
+    },
+    "nq_futures": {
+      "symbol": "NQ=F",
+      "last": 25495.25,
+      "prev": 25493.25,
+      "currency": "USD",
+      "exchangeName": "CME",
+      "instrumentType": "FUTURE",
+      "ts_utc": "2026-01-14T16:06:50.908265+00:00"
+    }
+  },
+  "funding": {
+    "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
   },
   "etf_flows": {
     "status": "unavailable",
