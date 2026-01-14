@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-01-14T16:06:50.512571+00:00",
+  "generated_utc": "2026-01-14T16:23:37.824669+00:00",
   "tier": "tier1",
   "price": {
     "source": "coinbase_spot",
-    "btc_usd": 96933.995,
-    "ts_utc": "2026-01-14T16:06:50.580223+00:00",
+    "btc_usd": 97216.625,
+    "ts_utc": "2026-01-14T16:23:37.960027+00:00",
     "raw": {
       "data": {
-        "amount": "96933.995",
+        "amount": "97216.625",
         "base": "BTC",
         "currency": "USD"
       }
@@ -15,40 +15,76 @@
   },
   "macro": {
     "dxy": {
-      "error": "yahoo_no_close"
+      "symbol": "DX-Y.NYB",
+      "last": 98.944,
+      "prev": 99.134,
+      "currency": "USD",
+      "exchangeName": "NYB",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-01-14T16:23:38.109614+00:00"
     },
     "us10y": {
       "symbol": "%5ETNX",
-      "last": 4.140000343322754,
-      "prev": 4.140000343322754,
+      "last": 4.14,
+      "prev": 4.171,
       "currency": "USD",
       "exchangeName": "CGI",
       "instrumentType": "INDEX",
-      "ts_utc": "2026-01-14T16:06:50.735576+00:00",
-      "last_yield_pct": 0.4140000343322754,
-      "prev_yield_pct": 0.4140000343322754
+      "ts_utc": "2026-01-14T16:23:38.236482+00:00",
+      "last_yield_pct": 4.14,
+      "prev_yield_pct": 4.171
     },
     "es_futures": {
       "symbol": "ES=F",
-      "last": 6934.25,
-      "prev": 6934.0,
+      "last": 6935.0,
+      "prev": 7001.75,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-01-14T16:06:50.843483+00:00"
+      "ts_utc": "2026-01-14T16:23:38.365878+00:00"
     },
     "nq_futures": {
       "symbol": "NQ=F",
-      "last": 25495.25,
-      "prev": 25493.25,
+      "last": 25499.5,
+      "prev": 25906.0,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-01-14T16:06:50.908265+00:00"
+      "ts_utc": "2026-01-14T16:23:38.493299+00:00"
     }
   },
   "funding": {
-    "error": "451 Client Error:  for url: https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
+    "source": "okx_swap",
+    "symbol": "BTC-USDT-SWAP",
+    "fundingRate": 2.54117030299e-05,
+    "nextFundingRate": null,
+    "ts_exchange_ms": 1768407781442,
+    "nextFundingTime_ms": 1768464000000,
+    "ts_utc": "2026-01-14T16:23:38.757801+00:00",
+    "raw": {
+      "code": "0",
+      "data": [
+        {
+          "formulaType": "withRate",
+          "fundingRate": "0.0000254117030299",
+          "fundingTime": "1768435200000",
+          "impactValue": "20000.0000000000000000",
+          "instId": "BTC-USDT-SWAP",
+          "instType": "SWAP",
+          "interestRate": "0.0001000000000000",
+          "maxFundingRate": "0.00375",
+          "method": "current_period",
+          "minFundingRate": "-0.00375",
+          "nextFundingRate": "",
+          "nextFundingTime": "1768464000000",
+          "premium": "-0.0007610021369760",
+          "settFundingRate": "0.0000544822712124",
+          "settState": "settled",
+          "ts": "1768407781442"
+        }
+      ],
+      "msg": ""
+    }
   },
   "etf_flows": {
     "status": "unavailable",
