@@ -1,11 +1,20 @@
 {
-  "generated_utc": "2026-01-14T15:18:13.537885+00:00",
+  "generated_utc": "2026-01-14T15:34:25.586538+00:00",
   "tier": "tier1",
   "price": {
-    "error": "HTTPSConnectionPool(host='api.coindesk.com', port=443): Max retries exceeded with url: /v1/bpi/currentprice/BTC.json (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7fdbde07dfa0>: Failed to resolve 'api.coindesk.com' ([Errno -2] Name or service not known)\"))"
+    "source": "coinbase_spot",
+    "btc_usd": 96846.53,
+    "ts_utc": "2026-01-14T15:34:25.679464+00:00",
+    "raw": {
+      "data": {
+        "amount": "96846.53",
+        "base": "BTC",
+        "currency": "USD"
+      }
+    }
   },
   "etf_flows": {
     "status": "unavailable",
-    "reason": "HTTP Error 403: Forbidden"
+    "reason": "HTTP 403"
   }
 }
