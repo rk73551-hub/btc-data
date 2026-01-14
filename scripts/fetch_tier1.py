@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import json
 import os
-import time
 from datetime import datetime, timezone
 
 import requests
@@ -22,11 +21,6 @@ def http_get_json(url: str, headers=None, timeout=20):
     r.raise_for_status()
     return r.json()
 
-def http_get_text(url: str, headers=None, timeout=20):
-    r = requests.get(url, headers=headers or {}, timeout=timeout)
-    r.raise_for_status()
-    return r.text
-
 # ---- sources ----
 
 def fetch_coinbase_spot_btc_usd():
@@ -46,9 +40,8 @@ def fetch_coinbase_spot_btc_usd():
 def fetch_yahoo_chart_last(symbol: str):
     """
     Yahoo Finance chart endpoint (public, no key)
-    Returns last close and prior close when available.
+    Fallback method: scan chart closes for last/prev non-null.
     """
-    # 5d gives enough points even if markets closed recently
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1h"
     j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
     res = j.get("chart", {}).get("result", [])
@@ -62,9 +55,10 @@ def fetch_yahoo_chart_last(symbol: str):
         raise RuntimeError("yahoo_no_indicators")
 
     closes = ind[0].get("close", []) or []
-    # find last non-null close
     last = None
     prev = None
+
+    # last non-null
     for v in reversed(closes):
         if v is not None:
             last = float(v)
@@ -72,13 +66,12 @@ def fetch_yahoo_chart_last(symbol: str):
     if last is None:
         raise RuntimeError("yahoo_no_close")
 
-    # find prev non-null close before last
+    # prev non-null before last
     found_last = False
     for v in reversed(closes):
         if v is None:
             continue
         if not found_last:
-            # this is last
             found_last = True
             continue
         prev = float(v)
@@ -94,24 +87,77 @@ def fetch_yahoo_chart_last(symbol: str):
         "ts_utc": utc_now_iso(),
     }
 
-def fetch_binance_btc_funding():
+def fetch_yahoo_meta_price(symbol: str):
     """
-    Binance USDT-m perpetual funding (public, no key)
-    Returns lastFundingRate and mark/index.
+    Yahoo Finance chart endpoint (public, no key)
+    Preferred for intraday: meta.regularMarketPrice + meta.previousClose
     """
-    # premiumIndex includes lastFundingRate
-    url = "https://fapi.binance.com/fapi/v1/premiumIndex?symbol=BTCUSDT"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=5d&interval=1h"
     j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
-    # lastFundingRate is a string like "0.00010000" (per funding interval)
-    rate = float(j.get("lastFundingRate")) if j.get("lastFundingRate") is not None else None
-    mark = float(j.get("markPrice")) if j.get("markPrice") is not None else None
-    index = float(j.get("indexPrice")) if j.get("indexPrice") is not None else None
+    res = j.get("chart", {}).get("result", [])
+    if not res:
+        raise RuntimeError("yahoo_no_result")
+
+    r0 = res[0]
+    meta = r0.get("meta", {}) or {}
+
+    last = meta.get("regularMarketPrice")
+    prev = meta.get("previousClose")
+
+    # If either missing, fall back to scanning closes (keeps system resilient)
+    if last is None:
+        try:
+            fallback = fetch_yahoo_chart_last(symbol)
+            last = fallback.get("last")
+            if prev is None:
+                prev = fallback.get("prev")
+        except Exception:
+            pass
+
+    if last is None:
+        raise RuntimeError("yahoo_no_last")
+
     return {
-        "source": "binance_futures",
-        "symbol": "BTCUSDT",
-        "lastFundingRate": rate,
-        "markPrice": mark,
-        "indexPrice": index,
+        "symbol": symbol,
+        "last": float(last),
+        "prev": float(prev) if prev is not None else None,
+        "currency": meta.get("currency"),
+        "exchangeName": meta.get("exchangeName"),
+        "instrumentType": meta.get("instrumentType"),
+        "ts_utc": utc_now_iso(),
+    }
+
+def fetch_okx_btc_funding():
+    """
+    OKX perpetual funding (public, no key).
+    Uses SWAP instrument BTC-USDT-SWAP.
+    """
+    url = "https://www.okx.com/api/v5/public/funding-rate?instId=BTC-USDT-SWAP"
+    j = http_get_json(url, headers={"User-Agent": "btc-data-tier1/1.0"})
+    data = (j.get("data") or [])
+    if not data:
+        raise RuntimeError("okx_no_data")
+    d0 = data[0]
+
+    # OKX returns strings
+    fr = d0.get("fundingRate")
+    ts = d0.get("ts")
+    next_fr = d0.get("nextFundingRate")
+    next_ts = d0.get("nextFundingTime")
+
+    def fnum(x):
+        try:
+            return float(x)
+        except Exception:
+            return None
+
+    return {
+        "source": "okx_swap",
+        "symbol": "BTC-USDT-SWAP",
+        "fundingRate": fnum(fr),          # e.g., 0.0001
+        "nextFundingRate": fnum(next_fr),
+        "ts_exchange_ms": int(ts) if ts is not None else None,
+        "nextFundingTime_ms": int(next_ts) if next_ts is not None else None,
         "ts_utc": utc_now_iso(),
         "raw": j,
     }
@@ -142,37 +188,39 @@ def main():
 
     # Macro (Yahoo)
     macro = {}
-    # DXY
+
+    # DXY: use DX-Y.NYB (more reliable) + meta-based pricing
     try:
-        macro["dxy"] = fetch_yahoo_chart_last("%5EDXY")  # ^DXY
+        macro["dxy"] = fetch_yahoo_meta_price("DX-Y.NYB")
     except Exception as e:
         macro["dxy"] = {"error": str(e)}
-    # US10Y (Yahoo: ^TNX is yield*10)
+
+    # US10Y: ^TNX already comes back as ~4.xx (= percent). Do NOT divide by 10.
     try:
-        tnx = fetch_yahoo_chart_last("%5ETNX")  # ^TNX
-        # Convert to percent yield
+        tnx = fetch_yahoo_meta_price("%5ETNX")  # ^TNX
         if isinstance(tnx.get("last"), (int, float)):
-            tnx["last_yield_pct"] = tnx["last"] / 10.0
+            tnx["last_yield_pct"] = tnx["last"]
         if isinstance(tnx.get("prev"), (int, float)):
-            tnx["prev_yield_pct"] = tnx["prev"] / 10.0
+            tnx["prev_yield_pct"] = tnx["prev"]
         macro["us10y"] = tnx
     except Exception as e:
         macro["us10y"] = {"error": str(e)}
+
     # Futures: ES and NQ
     try:
-        macro["es_futures"] = fetch_yahoo_chart_last("ES=F")
+        macro["es_futures"] = fetch_yahoo_meta_price("ES=F")
     except Exception as e:
         macro["es_futures"] = {"error": str(e)}
     try:
-        macro["nq_futures"] = fetch_yahoo_chart_last("NQ=F")
+        macro["nq_futures"] = fetch_yahoo_meta_price("NQ=F")
     except Exception as e:
         macro["nq_futures"] = {"error": str(e)}
 
     out["macro"] = macro
 
-    # Funding
+    # Funding: OKX instead of Binance (Binance often 451/geo-blocked in CI)
     try:
-        out["funding"] = fetch_binance_btc_funding()
+        out["funding"] = fetch_okx_btc_funding()
     except Exception as e:
         out["funding"] = {"error": str(e)}
 
