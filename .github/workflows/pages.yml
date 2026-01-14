@@ -24,11 +24,12 @@ jobs:
     steps:
       - name: Checkout repository (default branch)
         uses: actions/checkout@v4
-
-      - name: Fetch Tier 1 market data
-        shell: bash
-        run: |
-          python3 scripts/fetch_tier1.py
+        
+    - name: Fetch Tier 1 market data
+  run: |
+    python3 -m pip install --upgrade pip
+    python3 -m pip install pandas requests
+    python3 scripts/fetch_tier1.py
 
       - name: Create public dir
         run: mkdir -p public
