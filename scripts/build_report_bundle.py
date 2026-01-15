@@ -165,16 +165,16 @@ def main():
 
     # tier1 (compact it)
     if "tier1" in loaded:
-    t1 = compact_insights_local(loaded["tier1"])
+        t1 = compact_insights_local(loaded["tier1"])
 
+    # Explicitly document Tier-1 semantics
     if isinstance(t1, dict):
-        # Explicitly document Tier-1 semantics
         t1["note"] = (
             "Tier-1 data is fetched at workflow runtime (spot price, macro, funding). "
             "It is NOT the authoritative hourly candle close used by the Sheets engine."
         )
 
-        # Compute spot vs latest hourly close basis
+        # Compute spot vs latest hourly close
         spot = None
         try:
             spot = fnum((t1.get("price") or {}).get("btc_usd"))
@@ -190,6 +190,7 @@ def main():
             t1["spot_vs_latest_close_pct"] = None
 
     report["data"]["tier1"] = t1
+
 
     # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
