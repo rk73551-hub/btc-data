@@ -208,12 +208,14 @@ jobs:
           l_time=$(jq -r '.rows[0].time_utc' public/latest.json)
 
           if [ "$d_close" != "$l_close" ] || [ "$d_time" != "$l_time" ]; then
-            echo "WARNING: dashboard.json does not exactly match latest.json"
+            echo "ERROR: dashboard.json does not exactly match latest.json (anchor invariant broken)"
             echo "  dashboard latest_time_utc=${d_time}, latest_close=${d_close}"
             echo "  latest    time_utc=${l_time}, close=${l_close}"
+            exit 1
           else
             echo "Dashboard snapshot matches latest.json anchor ✔"
           fi
+
 
       - name: Write timestamp
         run: date -u +"%Y-%m-%dT%H:%M:%SZ" > public/timestamp.txt
