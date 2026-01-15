@@ -11,7 +11,7 @@ LAST_24H_KEEP_ROWS = int(os.getenv("REPORT_LAST24H_ROWS", "3"))
 
 FILES = {
     "dashboard": "dashboard.json",
-    "insights_local": "insights_local.json",
+    "tier1": "tier1.json",
     "latest": "latest.json",
     "last-24h": "last-24h.json",
     "90d": "90d.json",
@@ -163,9 +163,9 @@ def main():
     if "dashboard" in loaded:
         report["data"]["dashboard"] = loaded["dashboard"]
 
-    # insights_local (compact it)
-    if "insights_local" in loaded:
-        report["data"]["insights_local"] = compact_insights_local(loaded["insights_local"])
+    # tier1 (compact it)
+    if "tier1" in loaded:
+    report["data"]["tier1"] = compact_insights_local(loaded["tier1"])
 
     # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
