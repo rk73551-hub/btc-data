@@ -165,7 +165,31 @@ def main():
 
     # tier1 (compact it)
     if "tier1" in loaded:
-        report["data"]["tier1"] = compact_insights_local(loaded["tier1"])
+    t1 = compact_insights_local(loaded["tier1"])
+
+    if isinstance(t1, dict):
+        # Explicitly document Tier-1 semantics
+        t1["note"] = (
+            "Tier-1 data is fetched at workflow runtime (spot price, macro, funding). "
+            "It is NOT the authoritative hourly candle close used by the Sheets engine."
+        )
+
+        # Compute spot vs latest hourly close basis
+        spot = None
+        try:
+            spot = fnum((t1.get("price") or {}).get("btc_usd"))
+        except Exception:
+            spot = None
+
+        if spot is not None and latest_close not in (None, 0):
+            delta = spot - latest_close
+            t1["spot_vs_latest_close_usd"] = round(delta, 2)
+            t1["spot_vs_latest_close_pct"] = round((delta / latest_close) * 100.0, 3)
+        else:
+            t1["spot_vs_latest_close_usd"] = None
+            t1["spot_vs_latest_close_pct"] = None
+
+    report["data"]["tier1"] = t1
 
     # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
@@ -176,6 +200,11 @@ def main():
             latest["rows"] = [latest["rows"][-1]]
             latest["count"] = 1
         report["data"]["latest"] = latest
+
+    latest_close = None
+    if isinstance(latest, dict) and isinstance(latest.get("rows"), list) and latest["rows"]:
+        latest_close = fnum(latest["rows"][0].get("close"))
+
 
     # last-24h: summarize + last N rows
     if "last-24h" in loaded:
@@ -189,6 +218,12 @@ def main():
     ensure_dir(OUT_PATH)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, sort_keys=False)
+
+    def fnum(x):
+    try:
+        return float(x)
+    except Exception:
+        return None
 
     print(f"Wrote {OUT_PATH}")
 
