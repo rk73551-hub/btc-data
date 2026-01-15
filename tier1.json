@@ -1,0 +1,93 @@
+{
+  "generated_utc": "2026-01-15T16:18:37.551770+00:00",
+  "tier": "tier1",
+  "price": {
+    "source": "coinbase_spot",
+    "btc_usd": 96370.075,
+    "ts_utc": "2026-01-15T16:18:37.717212+00:00",
+    "raw": {
+      "data": {
+        "amount": "96370.075",
+        "base": "BTC",
+        "currency": "USD"
+      }
+    }
+  },
+  "macro": {
+    "dxy": {
+      "symbol": "DX-Y.NYB",
+      "last": 99.377,
+      "prev": 99.133,
+      "currency": "USD",
+      "exchangeName": "NYB",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-01-15T16:18:38.192076+00:00"
+    },
+    "us10y": {
+      "symbol": "%5ETNX",
+      "last": 4.1619997,
+      "prev": 4.1400003,
+      "currency": "USD",
+      "exchangeName": "CGI",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-01-15T16:18:38.321570+00:00",
+      "last_yield_pct": 4.1619997,
+      "prev_yield_pct": 4.1400003
+    },
+    "es_futures": {
+      "symbol": "ES=F",
+      "last": 7009.25,
+      "prev": 6966.25,
+      "currency": "USD",
+      "exchangeName": "CME",
+      "instrumentType": "FUTURE",
+      "ts_utc": "2026-01-15T16:18:38.487406+00:00"
+    },
+    "nq_futures": {
+      "symbol": "NQ=F",
+      "last": 25905.0,
+      "prev": 25631.0,
+      "currency": "USD",
+      "exchangeName": "CME",
+      "instrumentType": "FUTURE",
+      "ts_utc": "2026-01-15T16:18:38.608119+00:00"
+    }
+  },
+  "funding": {
+    "source": "okx_swap",
+    "symbol": "BTC-USDT-SWAP",
+    "fundingRate": 2.22083985841e-05,
+    "nextFundingRate": null,
+    "ts_exchange_ms": 1768493904307,
+    "nextFundingTime_ms": 1768550400000,
+    "ts_utc": "2026-01-15T16:18:38.974411+00:00",
+    "raw": {
+      "code": "0",
+      "data": [
+        {
+          "formulaType": "withRate",
+          "fundingRate": "0.0000222083985841",
+          "fundingTime": "1768521600000",
+          "impactValue": "20000.0000000000000000",
+          "instId": "BTC-USDT-SWAP",
+          "instType": "SWAP",
+          "interestRate": "0.0001000000000000",
+          "maxFundingRate": "0.00375",
+          "method": "current_period",
+          "minFundingRate": "-0.00375",
+          "nextFundingRate": "",
+          "nextFundingTime": "1768550400000",
+          "premium": "-0.0006400494611966",
+          "settFundingRate": "0.0000246792324520",
+          "settState": "settled",
+          "ts": "1768493904307"
+        }
+      ],
+      "msg": ""
+    }
+  },
+  "etf_flows": {
+    "status": "unavailable",
+    "reason": "HTTP 403"
+  }
+}
