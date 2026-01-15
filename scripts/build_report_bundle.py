@@ -2,163 +2,195 @@
 import json
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
 
-PUBLIC_DIR = "public"
+IN_DIR = "public"
+OUT_PATH = os.path.join(IN_DIR, "report.json")
+
+# keep only last N candles from last-24h to keep report tiny
+LAST_24H_KEEP_ROWS = int(os.getenv("REPORT_LAST24H_ROWS", "3"))
 
 FILES = {
+    "dashboard": "dashboard.json",
+    "insights_local": "insights_local.json",
     "latest": "latest.json",
     "last-24h": "last-24h.json",
     "90d": "90d.json",
     "ytd": "ytd.json",
     "2023": "2023.json",
     "2024": "2024.json",
-    "dashboard": "dashboard.json",
-    "insights_local": "insights_local.json",
 }
 
-OUT_SMALL = os.path.join(PUBLIC_DIR, "report.json")
-
-def utc_now_iso() -> str:
+def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
-def read_json(path: str) -> Any:
+def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def write_json(path: str, obj: Any) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2, sort_keys=False)
+def ensure_dir(path):
+    d = os.path.dirname(path)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
 
-def file_exists(path: str) -> bool:
-    try:
-        return os.path.exists(path) and os.path.getsize(path) > 0
-    except Exception:
-        return False
+def compact_insights_local(obj):
+    # Remove huge raw blobs if they exist (price/raw, funding/raw, etc.)
+    if not isinstance(obj, dict):
+        return obj
+    out = dict(obj)
+    for k in ("price", "funding", "macro"):
+        if isinstance(out.get(k), dict) and "raw" in out[k]:
+            out[k] = dict(out[k])
+            out[k].pop("raw", None)
+    return out
 
-def rows_from_dataset(ds: Any) -> List[Dict[str, Any]]:
-    if not isinstance(ds, dict):
-        return []
-    rows = ds.get("rows")
-    return [r for r in rows if isinstance(r, dict)] if isinstance(rows, list) else []
+def summarize_last24h(obj):
+    """
+    Input shape (your dataset):
+      { ok, version, count, rows:[{open,high,low,close,volume,...}, ...] }
+    Output:
+      {
+        ok, version,
+        summary:{open_first, close_last, high, low, change_pct, volume_sum, bars},
+        rows_tail:[...last N rows...]
+      }
+    """
+    if not isinstance(obj, dict):
+        return {"ok": False, "error": "invalid_json"}
 
-def safe_float(x: Any) -> Optional[float]:
-    try:
-        if x is None:
-            return None
-        if isinstance(x, (int, float)):
+    rows = obj.get("rows") or []
+    if not rows:
+        return {
+            "ok": bool(obj.get("ok")),
+            "version": obj.get("version"),
+            "summary": {"bars": 0},
+            "rows_tail": [],
+        }
+
+    # guard numeric extraction
+    def fnum(x):
+        try:
             return float(x)
-        s = str(x).strip()
-        if s == "":
+        except Exception:
             return None
-        return float(s)
-    except Exception:
-        return None
 
-def strip_raw_recursive(obj: Any) -> Any:
-    """
-    Recursively remove any key named 'raw' anywhere in the object.
-    This is what makes insights_local (and sometimes other feeds) explode in size.
-    """
-    if isinstance(obj, dict):
-        out = {}
-        for k, v in obj.items():
-            if k == "raw":
-                continue
-            out[k] = strip_raw_recursive(v)
-        return out
-    if isinstance(obj, list):
-        return [strip_raw_recursive(x) for x in obj]
-    return obj
+    open_first = fnum(rows[0].get("open"))
+    close_last = fnum(rows[-1].get("close"))
 
-def summarize_dataset(ds: Any) -> Dict[str, Any]:
-    """
-    For big datasets: include only metadata + basic price stats + label counts.
-    NO rows included here (keeps report.json small).
-    """
-    rows = rows_from_dataset(ds)
-    closes = [safe_float(r.get("close")) for r in rows]
-    closes = [c for c in closes if c is not None]
+    highs = [fnum(r.get("high")) for r in rows if r.get("high") is not None]
+    lows  = [fnum(r.get("low")) for r in rows if r.get("low") is not None]
+    vols  = [fnum(r.get("volume")) for r in rows if r.get("volume") is not None]
 
-    labels = [(r.get("composite_label") or "").lower() for r in rows]
-    bullish = sum(1 for l in labels if l == "bullish")
-    bearish = sum(1 for l in labels if l == "bearish")
-    neutral = len(labels) - bullish - bearish
+    high = max([v for v in highs if v is not None], default=None)
+    low  = min([v for v in lows if v is not None], default=None)
+    volume_sum = sum([v for v in vols if v is not None]) if vols else None
 
-    latest_time_utc = rows[-1].get("time_utc") if rows else None
+    change_pct = None
+    if open_first not in (None, 0) and close_last is not None:
+        change_pct = (close_last / open_first - 1.0) * 100.0
 
-    stats = {
-        "count": len(rows),
-        "latest_time_utc": latest_time_utc,
-        "close_last": round(closes[-1], 2) if closes else None,
-        "close_min": round(min(closes), 2) if closes else None,
-        "close_max": round(max(closes), 2) if closes else None,
-    }
-
-    if closes and closes[0] and closes[0] != 0:
-        stats["close_change_pct"] = round(((closes[-1] - closes[0]) / closes[0]) * 100.0, 2)
-    else:
-        stats["close_change_pct"] = None
+    tail = rows[-LAST_24H_KEEP_ROWS:] if LAST_24H_KEEP_ROWS > 0 else []
 
     return {
-        "ok": bool(ds.get("ok")) if isinstance(ds, dict) else None,
-        "version": ds.get("version") if isinstance(ds, dict) else None,
-        "summary": stats,
-        "label_counts": {"bullish": bullish, "neutral": neutral, "bearish": bearish, "total": len(labels)},
+        "ok": bool(obj.get("ok")),
+        "version": obj.get("version"),
+        "summary": {
+            "bars": len(rows),
+            "open_first": open_first,
+            "close_last": close_last,
+            "high": high,
+            "low": low,
+            "change_pct": change_pct,
+            "volume_sum": volume_sum,
+            "first_time_utc": rows[0].get("time_utc"),
+            "last_time_utc": rows[-1].get("time_utc"),
+        },
+        "rows_tail": tail,
     }
 
-def main() -> None:
-    loaded: Dict[str, Any] = {}
-    missing: List[str] = []
-    errors: Dict[str, str] = {}
+def keep_summary_only(obj):
+    """
+    For 90d/ytd/2023/2024: you already store compact summary + label_counts.
+    Just keep those top-level fields and never include rows.
+    """
+    if not isinstance(obj, dict):
+        return {"ok": False, "error": "invalid_json"}
 
+    out = {
+        "ok": bool(obj.get("ok", True)),  # some of your year files don't have ok/version
+        "version": obj.get("version"),
+    }
+
+    # prefer existing summary/label_counts if present
+    if "summary" in obj:
+        out["summary"] = obj.get("summary")
+    if "label_counts" in obj:
+        out["label_counts"] = obj.get("label_counts")
+
+    # If the file is in the "rows shape", still summarize lightly:
+    if "rows" in obj and isinstance(obj.get("rows"), list) and obj["rows"]:
+        rows = obj["rows"]
+        out["summary"] = out.get("summary") or {
+            "count": len(rows),
+            "latest_time_utc": rows[-1].get("time_utc"),
+            "close_last": rows[-1].get("close"),
+        }
+
+    return out
+
+def main():
+    report = {
+        "generated_utc": utc_now_iso(),
+        "schema": "btc-data-report-v1",
+        "status": {"ok": True, "missing_files": [], "errors": {}},
+        "data": {},
+    }
+
+    # load each file if present
+    loaded = {}
     for key, fname in FILES.items():
-        path = os.path.join(PUBLIC_DIR, fname)
-        if not file_exists(path):
-            missing.append(fname)
+        path = os.path.join(IN_DIR, fname)
+        if not os.path.exists(path):
+            report["status"]["ok"] = False
+            report["status"]["missing_files"].append(fname)
             continue
         try:
             loaded[key] = read_json(path)
         except Exception as e:
-            errors[fname] = str(e)
+            report["status"]["ok"] = False
+            report["status"]["errors"][fname] = str(e)
 
-    ok = (len(missing) == 0 and len(errors) == 0)
-
-    report: Dict[str, Any] = {
-        "generated_utc": utc_now_iso(),
-        "schema": "btc-data-report-v1",
-        "status": {
-            "ok": ok,
-            "missing_files": missing,
-            "errors": errors,
-        },
-        "data": {}
-    }
-
-    # 1) dashboard is already compact and important
+    # dashboard (already compact)
     if "dashboard" in loaded:
         report["data"]["dashboard"] = loaded["dashboard"]
 
-    # 2) insights_local: STRIP raw payloads so it stays small
+    # insights_local (compact it)
     if "insights_local" in loaded:
-        report["data"]["insights_local"] = strip_raw_recursive(loaded["insights_local"])
+        report["data"]["insights_local"] = compact_insights_local(loaded["insights_local"])
 
-    # 3) latest (1 row) keep
+    # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
-        report["data"]["latest"] = loaded["latest"]
+        # Some earlier scripts put rows; keep the first row only if it exists
+        latest = loaded["latest"]
+        if isinstance(latest, dict) and isinstance(latest.get("rows"), list) and latest["rows"]:
+            latest = dict(latest)
+            latest["rows"] = [latest["rows"][-1]]
+            latest["count"] = 1
+        report["data"]["latest"] = latest
 
-    # 4) last-24h (24 rows) keep
+    # last-24h: summarize + last N rows
     if "last-24h" in loaded:
-        report["data"]["last-24h"] = loaded["last-24h"]
+        report["data"]["last-24h"] = summarize_last24h(loaded["last-24h"])
 
-    # 5) Big datasets: summary ONLY (NO ROWS)
-    for k in ["90d", "ytd", "2023", "2024"]:
+    # periods: summary only
+    for k in ("90d", "ytd", "2023", "2024"):
         if k in loaded:
-            report["data"][k] = summarize_dataset(loaded[k])
+            report["data"][k] = keep_summary_only(loaded[k])
 
-    write_json(OUT_SMALL, report)
-    print(f"Wrote {OUT_SMALL}")
+    ensure_dir(OUT_PATH)
+    with open(OUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(report, f, indent=2, sort_keys=False)
+
+    print(f"Wrote {OUT_PATH}")
 
 if __name__ == "__main__":
     main()
