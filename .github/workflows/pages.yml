@@ -39,10 +39,6 @@ jobs:
         run: |
           python3 scripts/fetch_tier1.py
 
-      - name: Build compact report.json
-        shell: bash
-        run: |
-          python3 scripts/build_report.py
 
       # --- Sanity: health must return JSON
       - name: Sanity ping (health)
