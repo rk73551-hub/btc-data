@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import requests
 
-OUT_PATH = "public/insights_local.json"
+OUT_PATH = "public/tier1.json"
 
 # ---- helpers ----
 def utc_now_iso():
