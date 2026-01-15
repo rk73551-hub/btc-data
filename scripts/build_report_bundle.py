@@ -165,7 +165,7 @@ def main():
 
     # tier1 (compact it)
     if "tier1" in loaded:
-    report["data"]["tier1"] = compact_insights_local(loaded["tier1"])
+        report["data"]["tier1"] = compact_insights_local(loaded["tier1"])
 
     # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
