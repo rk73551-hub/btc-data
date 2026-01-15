@@ -221,10 +221,10 @@ def main():
         json.dump(report, f, indent=2, sort_keys=False)
 
     def fnum(x):
-    try:
-        return float(x)
-    except Exception:
-        return None
+        try:
+            return float(x)
+        except Exception:
+            return None
 
     print(f"Wrote {OUT_PATH}")
 
