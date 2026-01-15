@@ -11,37 +11,56 @@ LAST_24H_KEEP_ROWS = int(os.getenv("REPORT_LAST24H_ROWS", "3"))
 
 FILES = {
     "dashboard": "dashboard.json",
-    "tier1": "tier1.json",
+    "insights_local": "insights_local.json",
     "latest": "latest.json",
     "last-24h": "last-24h.json",
     "90d": "90d.json",
     "ytd": "ytd.json",
     "2023": "2023.json",
     "2024": "2024.json",
+    "tier1": "tier1.json",
 }
+
 
 def utc_now_iso():
     return datetime.now(timezone.utc).isoformat()
 
+
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def ensure_dir(path):
     d = os.path.dirname(path)
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
+
 def compact_insights_local(obj):
-    # Remove huge raw blobs if they exist (price/raw, funding/raw, etc.)
+    # Remove huge raw blobs if they exist (price/raw, funding/raw, macro/*/raw)
     if not isinstance(obj, dict):
         return obj
     out = dict(obj)
-    for k in ("price", "funding", "macro"):
+
+    # top-level price / funding
+    for k in ("price", "funding"):
         if isinstance(out.get(k), dict) and "raw" in out[k]:
             out[k] = dict(out[k])
             out[k].pop("raw", None)
+
+    # macro can contain nested dicts with raw
+    if isinstance(out.get("macro"), dict):
+        macro = dict(out["macro"])
+        for mk, mv in macro.items():
+            if isinstance(mv, dict) and "raw" in mv:
+                mv = dict(mv)
+                mv.pop("raw", None)
+                macro[mk] = mv
+        out["macro"] = macro
+
     return out
+
 
 def summarize_last24h(obj):
     """
@@ -67,21 +86,21 @@ def summarize_last24h(obj):
         }
 
     # guard numeric extraction
-    def fnum(x):
+    def fnum_local(x):
         try:
             return float(x)
         except Exception:
             return None
 
-    open_first = fnum(rows[0].get("open"))
-    close_last = fnum(rows[-1].get("close"))
+    open_first = fnum_local(rows[0].get("open"))
+    close_last = fnum_local(rows[-1].get("close"))
 
-    highs = [fnum(r.get("high")) for r in rows if r.get("high") is not None]
-    lows  = [fnum(r.get("low")) for r in rows if r.get("low") is not None]
-    vols  = [fnum(r.get("volume")) for r in rows if r.get("volume") is not None]
+    highs = [fnum_local(r.get("high")) for r in rows if r.get("high") is not None]
+    lows = [fnum_local(r.get("low")) for r in rows if r.get("low") is not None]
+    vols = [fnum_local(r.get("volume")) for r in rows if r.get("volume") is not None]
 
     high = max([v for v in highs if v is not None], default=None)
-    low  = min([v for v in lows if v is not None], default=None)
+    low = min([v for v in lows if v is not None], default=None)
     volume_sum = sum([v for v in vols if v is not None]) if vols else None
 
     change_pct = None
@@ -106,6 +125,7 @@ def summarize_last24h(obj):
         },
         "rows_tail": tail,
     }
+
 
 def keep_summary_only(obj):
     """
@@ -137,6 +157,15 @@ def keep_summary_only(obj):
 
     return out
 
+
+def fnum(x):
+    """Safe float conversion used in tier1 basis calculation."""
+    try:
+        return float(x)
+    except Exception:
+        return None
+
+
 def main():
     report = {
         "generated_utc": utc_now_iso(),
@@ -163,49 +192,25 @@ def main():
     if "dashboard" in loaded:
         report["data"]["dashboard"] = loaded["dashboard"]
 
-    # tier1 (compact it)
-    if "tier1" in loaded:
-        t1 = compact_insights_local(loaded["tier1"])
-
-    # Explicitly document Tier-1 semantics
-    if isinstance(t1, dict):
-        t1["note"] = (
-            "Tier-1 data is fetched at workflow runtime (spot price, macro, funding). "
-            "It is NOT the authoritative hourly candle close used by the Sheets engine."
+    # insights_local (compact it)
+    if "insights_local" in loaded:
+        report["data"]["insights_local"] = compact_insights_local(
+            loaded["insights_local"]
         )
-
-        # Compute spot vs latest hourly close
-        spot = None
-        try:
-            spot = fnum((t1.get("price") or {}).get("btc_usd"))
-        except Exception:
-            spot = None
-
-        if spot is not None and latest_close not in (None, 0):
-            delta = spot - latest_close
-            t1["spot_vs_latest_close_usd"] = round(delta, 2)
-            t1["spot_vs_latest_close_pct"] = round((delta / latest_close) * 100.0, 3)
-        else:
-            t1["spot_vs_latest_close_usd"] = None
-            t1["spot_vs_latest_close_pct"] = None
-
-    report["data"]["tier1"] = t1
-
 
     # latest: keep ONLY the single candle (already 1 row)
     if "latest" in loaded:
-        # Some earlier scripts put rows; keep the first row only if it exists
         latest = loaded["latest"]
-        if isinstance(latest, dict) and isinstance(latest.get("rows"), list) and latest["rows"]:
+        # Some earlier scripts put rows; keep the last row only if it exists
+        if (
+            isinstance(latest, dict)
+            and isinstance(latest.get("rows"), list)
+            and latest["rows"]
+        ):
             latest = dict(latest)
             latest["rows"] = [latest["rows"][-1]]
             latest["count"] = 1
         report["data"]["latest"] = latest
-
-    latest_close = None
-    if isinstance(latest, dict) and isinstance(latest.get("rows"), list) and latest["rows"]:
-        latest_close = fnum(latest["rows"][0].get("close"))
-
 
     # last-24h: summarize + last N rows
     if "last-24h" in loaded:
@@ -216,17 +221,51 @@ def main():
         if k in loaded:
             report["data"][k] = keep_summary_only(loaded[k])
 
+    # tier1: compact + basis/delta vs latest close
+    if "tier1" in loaded:
+        t1 = compact_insights_local(loaded["tier1"])
+
+        basis = None
+        basis_pct = None
+        latest_close = None
+
+        latest_section = report["data"].get("latest")
+        if isinstance(latest_section, dict):
+            rows = latest_section.get("rows")
+            if isinstance(rows, list) and rows:
+                latest_close = fnum(rows[0].get("close"))
+
+        spot = None
+        if isinstance(t1, dict):
+            price_block = t1.get("price")
+            if isinstance(price_block, dict):
+                spot = fnum(price_block.get("btc_usd"))
+
+        if latest_close is not None and spot is not None and latest_close not in (0,):
+            basis = spot - latest_close
+            basis_pct = (basis / latest_close) * 100.0
+
+        t1_out = dict(t1) if isinstance(t1, dict) else {"error": "invalid_tier1"}
+
+        # Add explanatory note + basis info
+        t1_out["note"] = (
+            "Tier-1: runtime BTC spot + macro + funding snapshot from external APIs."
+        )
+        t1_out["basis_vs_latest"] = {
+            "latest_close": latest_close,
+            "spot_btc_usd": spot,
+            "basis_abs": basis,
+            "basis_pct": basis_pct,
+        }
+
+        report["data"]["tier1"] = t1_out
+
     ensure_dir(OUT_PATH)
     with open(OUT_PATH, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, sort_keys=False)
 
-    def fnum(x):
-        try:
-            return float(x)
-        except Exception:
-            return None
-
     print(f"Wrote {OUT_PATH}")
+
 
 if __name__ == "__main__":
     main()
