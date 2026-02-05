@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-02-05T02:50:08.486246+00:00",
+  "generated_utc": "2026-02-05T04:49:49.336584+00:00",
   "tier": "tier1",
   "price": {
     "source": "coinbase_spot",
-    "btc_usd": 71714.645,
-    "ts_utc": "2026-02-05T02:50:08.655986+00:00",
+    "btc_usd": 71100.005,
+    "ts_utc": "2026-02-05T04:49:49.509335+00:00",
     "raw": {
       "data": {
-        "amount": "71714.645",
+        "amount": "71100.005",
         "base": "BTC",
         "currency": "USD"
       }
@@ -15,58 +15,44 @@
   },
   "macro": {
     "dxy": {
-      "symbol": "DX-Y.NYB",
-      "last": 97.702,
-      "prev": 97.616,
-      "currency": "USD",
-      "exchangeName": "NYB",
-      "instrumentType": "INDEX",
-      "ts_utc": "2026-02-05T02:50:08.930134+00:00"
+      "error": "429 Client Error: Too Many Requests for url: https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB?range=5d&interval=1h"
     },
     "us10y": {
-      "symbol": "%5ETNX",
-      "last": 4.275,
-      "prev": 4.274,
-      "currency": "USD",
-      "exchangeName": "CGI",
-      "instrumentType": "INDEX",
-      "ts_utc": "2026-02-05T02:50:09.055078+00:00",
-      "last_yield_pct": 4.275,
-      "prev_yield_pct": 4.274
+      "error": "429 Client Error: Too Many Requests for url: https://query1.finance.yahoo.com/v8/finance/chart/%5ETNX?range=5d&interval=1h"
     },
     "es_futures": {
       "symbol": "ES=F",
-      "last": 6918.25,
+      "last": 6896.5,
       "prev": 6906.25,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-02-05T02:50:09.204683+00:00"
+      "ts_utc": "2026-02-05T04:49:49.982304+00:00"
     },
     "nq_futures": {
       "symbol": "NQ=F",
-      "last": 25074.25,
+      "last": 24971.0,
       "prev": 24999.25,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-02-05T02:50:09.344782+00:00"
+      "ts_utc": "2026-02-05T04:49:50.170253+00:00"
     }
   },
   "funding": {
     "source": "okx_swap",
     "symbol": "BTC-USDT-SWAP",
-    "fundingRate": 7.39315159947e-05,
+    "fundingRate": 9.53122409624e-05,
     "nextFundingRate": null,
-    "ts_exchange_ms": 1770259769374,
+    "ts_exchange_ms": 1770266955395,
     "nextFundingTime_ms": 1770307200000,
-    "ts_utc": "2026-02-05T02:50:09.655044+00:00",
+    "ts_utc": "2026-02-05T04:49:50.504507+00:00",
     "raw": {
       "code": "0",
       "data": [
         {
           "formulaType": "withRate",
-          "fundingRate": "0.0000739315159947",
+          "fundingRate": "0.0000953122409624",
           "fundingTime": "1770278400000",
           "impactValue": "20000.0000000000000000",
           "instId": "BTC-USDT-SWAP",
@@ -77,11 +63,11 @@
           "minFundingRate": "-0.00375",
           "nextFundingRate": "",
           "nextFundingTime": "1770307200000",
-          "premium": "-0.0005170939873924",
+          "premium": "-0.0005172856103480",
           "prevFundingTime": "1770249600000",
           "settFundingRate": "0.0000818857149218",
           "settState": "settled",
-          "ts": "1770259769374"
+          "ts": "1770266955395"
         }
       ],
       "msg": ""
