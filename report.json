@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-03-27T07:42:32.658667+00:00",
+  "generated_utc": "2026-03-27T09:38:52.855647+00:00",
   "schema": "btc-data-report-v1",
   "status": {
     "ok": true,
@@ -10,23 +10,23 @@
     "dashboard": {
       "ok": true,
       "version": "dash-2025-08-31-atomic-03",
-      "updated": "2026-03-27T07:42:31.654Z",
+      "updated": "2026-03-27T09:38:52.107Z",
       "count": 20000,
-      "latest_time_utc": "2026-03-27T07:00:00.000Z",
-      "latest_time_ny": "3/27/2026 03:00:00",
-      "latest_close": 68869.23,
-      "latest_rsi14": 43.1,
-      "latest_composite": -0.3044,
+      "latest_time_utc": "2026-03-27T09:00:00.000Z",
+      "latest_time_ny": "3/27/2026 05:00:00",
+      "latest_close": 67867.15,
+      "latest_rsi14": 26.14,
+      "latest_composite": -0.3377,
       "latest_label": "neutral",
-      "day_open": 69984.85,
-      "day_high": 69984.85,
-      "day_low": 68431.78,
-      "day_close": 68869.23,
-      "day_volume": 7908.2075,
+      "day_open": 67869.79,
+      "day_high": 67869.79,
+      "day_low": 67867.15,
+      "day_close": 67867.15,
+      "day_volume": 655.9227,
       "prev_close": null,
       "change_pct": null,
-      "h24_high": 69984.85,
-      "h24_low": 68431.78,
+      "h24_high": 69606,
+      "h24_low": 67867.15,
       "d7_high": 71705.97,
       "d7_low": 67652,
       "d30_high": 75627.23,
@@ -47,20 +47,20 @@
       "count": 1,
       "rows": [
         {
-          "time_utc": "2026-03-27T07:00:00.000Z",
-          "time_ny": "3/27/2026 03:00:00",
-          "open": 68613.89,
-          "high": 68915.52,
-          "low": 68561.68,
-          "close": 68869.23,
-          "volume": 82.05450086,
-          "trend_score": -0.0083,
-          "momentum_score": -0.138,
-          "volatility_score": -0.668,
-          "volume_score": -0.767,
-          "composite_score": -0.3044,
+          "time_utc": "2026-03-27T09:00:00.000Z",
+          "time_ny": "3/27/2026 05:00:00",
+          "open": 67869.79,
+          "high": 67904.02,
+          "low": 67501.63,
+          "close": 67867.15,
+          "volume": 177.87487756,
+          "trend_score": -0.0158,
+          "momentum_score": -0.5103,
+          "volatility_score": -0.3223,
+          "volume_score": -0.6885,
+          "composite_score": -0.4049,
           "composite_label": "neutral",
-          "signal_events": null
+          "signal_events": "RSI<30"
         }
       ]
     },
@@ -69,82 +69,77 @@
       "version": "dash-2025-08-31-atomic-03",
       "summary": {
         "bars": 24,
-        "open_first": 70060.01,
-        "close_last": 68869.23,
-        "high": 70110.73,
-        "low": 68102.36,
-        "change_pct": -1.6996571938827865,
-        "volume_sum": 7908.2075037800005,
-        "first_time_utc": "2026-03-26T08:00:00.000Z",
-        "last_time_utc": "2026-03-27T07:00:00.000Z"
+        "open_first": 69533.62,
+        "close_last": 67867.15,
+        "high": 69832.15,
+        "low": 67501.63,
+        "change_pct": -2.396639208486484,
+        "volume_sum": 8724.73558492,
+        "first_time_utc": "2026-03-26T10:00:00.000Z",
+        "last_time_utc": "2026-03-27T09:00:00.000Z"
       },
       "rows_tail": [
-        {
-          "time_utc": "2026-03-27T05:00:00.000Z",
-          "time_ny": "3/27/2026 01:00:00",
-          "open": 68526,
-          "high": 68812.75,
-          "low": 68460.74,
-          "close": 68575.32,
-          "volume": 133.0275642,
-          "trend_score": -0.0111,
-          "momentum_score": -0.3,
-          "volatility_score": -1,
-          "volume_score": -0.631,
-          "composite_score": -0.314,
-          "composite_label": "neutral",
-          "signal_events": null
-        },
-        {
-          "time_utc": "2026-03-27T06:00:00.000Z",
-          "time_ny": "3/27/2026 02:00:00",
-          "open": 68575.32,
-          "high": 68795.97,
-          "low": 68515.76,
-          "close": 68613.89,
-          "volume": 154.78591094,
-          "trend_score": -0.0105,
-          "momentum_score": -0.2777,
-          "volatility_score": -0.9228,
-          "volume_score": -0.57,
-          "composite_score": -0.286,
-          "composite_label": "neutral",
-          "signal_events": null
-        },
         {
           "time_utc": "2026-03-27T07:00:00.000Z",
           "time_ny": "3/27/2026 03:00:00",
           "open": 68613.89,
           "high": 68915.52,
-          "low": 68561.68,
-          "close": 68869.23,
-          "volume": 82.05450086,
-          "trend_score": -0.0083,
-          "momentum_score": -0.138,
-          "volatility_score": -0.668,
-          "volume_score": -0.767,
-          "composite_score": -0.3044,
+          "low": 68385,
+          "close": 68478.65,
+          "volume": 704.44673195,
+          "trend_score": -0.0111,
+          "momentum_score": -0.3217,
+          "volatility_score": -0.906,
+          "volume_score": 0.8376,
+          "composite_score": 0.1683,
           "composite_label": "neutral",
           "signal_events": null
+        },
+        {
+          "time_utc": "2026-03-27T08:00:00.000Z",
+          "time_ny": "3/27/2026 04:00:00",
+          "open": 68480,
+          "high": 68580.33,
+          "low": 67552.12,
+          "close": 67869.79,
+          "volume": 478.04780365,
+          "trend_score": -0.0151,
+          "momentum_score": -0.4766,
+          "volatility_score": 0.01,
+          "volume_score": 0.2131,
+          "composite_score": -0.0929,
+          "composite_label": "neutral",
+          "signal_events": "RSI<30"
+        },
+        {
+          "time_utc": "2026-03-27T09:00:00.000Z",
+          "time_ny": "3/27/2026 05:00:00",
+          "open": 67869.79,
+          "high": 67904.02,
+          "low": 67501.63,
+          "close": 67867.15,
+          "volume": 177.87487756,
+          "trend_score": -0.0158,
+          "momentum_score": -0.5103,
+          "volatility_score": -0.3223,
+          "volume_score": -0.6885,
+          "composite_score": -0.4049,
+          "composite_label": "neutral",
+          "signal_events": "RSI<30"
         }
       ]
     },
     "90d": {
       "ok": true,
-      "version": "dash-2025-08-31-atomic-03",
-      "summary": {
-        "count": 2160,
-        "latest_time_utc": "2026-03-27T07:00:00.000Z",
-        "close_last": 68869.23
-      }
+      "version": "dash-2025-08-31-atomic-03"
     },
     "ytd": {
       "ok": true,
       "version": "dash-2025-08-31-atomic-03",
       "summary": {
-        "count": 10798,
-        "latest_time_utc": "2026-03-27T07:00:00.000Z",
-        "close_last": 68869.23
+        "count": 10800,
+        "latest_time_utc": "2026-03-27T09:00:00.000Z",
+        "close_last": 67867.15
       }
     },
     "2023": {
@@ -166,22 +161,22 @@
       }
     },
     "tier1": {
-      "generated_utc": "2026-03-27T07:41:41.776126+00:00",
+      "generated_utc": "2026-03-27T09:38:16.459514+00:00",
       "tier": "tier1",
       "price": {
         "source": "coinbase_spot",
-        "btc_usd": 68561.175,
-        "ts_utc": "2026-03-27T07:41:41.956723+00:00"
+        "btc_usd": 67756.915,
+        "ts_utc": "2026-03-27T09:38:16.524249+00:00"
       },
       "macro": {
         "dxy": {
           "symbol": "DX-Y.NYB",
-          "last": 99.977,
+          "last": 99.974,
           "prev": 99.9,
           "currency": "USD",
           "exchangeName": "NYB",
           "instrumentType": "INDEX",
-          "ts_utc": "2026-03-27T07:41:42.346977+00:00"
+          "ts_utc": "2026-03-27T09:38:16.621225+00:00"
         },
         "us10y": {
           "symbol": "%5ETNX",
@@ -190,37 +185,37 @@
           "currency": "USD",
           "exchangeName": "CGI",
           "instrumentType": "INDEX",
-          "ts_utc": "2026-03-27T07:41:42.554247+00:00",
+          "ts_utc": "2026-03-27T09:38:16.689516+00:00",
           "last_yield_pct": 4.416,
           "prev_yield_pct": 4.328
         },
         "es_futures": {
           "symbol": "ES=F",
-          "last": 6542.0,
+          "last": 6525.5,
           "prev": 6525.0,
           "currency": "USD",
           "exchangeName": "CME",
           "instrumentType": "FUTURE",
-          "ts_utc": "2026-03-27T07:41:42.755561+00:00"
+          "ts_utc": "2026-03-27T09:38:16.746363+00:00"
         },
         "nq_futures": {
           "symbol": "NQ=F",
-          "last": 23856.0,
+          "last": 23784.5,
           "prev": 23794.25,
           "currency": "USD",
           "exchangeName": "CME",
           "instrumentType": "FUTURE",
-          "ts_utc": "2026-03-27T07:41:46.089216+00:00"
+          "ts_utc": "2026-03-27T09:38:16.806773+00:00"
         }
       },
       "funding": {
         "source": "okx_swap",
         "symbol": "BTC-USDT-SWAP",
-        "fundingRate": 6.73585186639e-05,
+        "fundingRate": 5.16510110269e-05,
         "nextFundingRate": null,
-        "ts_exchange_ms": 1774597276433,
-        "nextFundingTime_ms": 1774627200000,
-        "ts_utc": "2026-03-27T07:41:46.451922+00:00"
+        "ts_exchange_ms": 1774604290215,
+        "nextFundingTime_ms": 1774656000000,
+        "ts_utc": "2026-03-27T09:38:17.097792+00:00"
       },
       "etf_flows": {
         "status": "unavailable",
@@ -228,10 +223,10 @@
       },
       "note": "Tier-1: runtime BTC spot + macro + funding snapshot from external APIs.",
       "basis_vs_latest": {
-        "latest_close": 68869.23,
-        "spot_btc_usd": 68561.175,
-        "basis_abs": -308.054999999993,
-        "basis_pct": -0.4473042605529247
+        "latest_close": 67867.15,
+        "spot_btc_usd": 67756.915,
+        "basis_abs": -110.23500000000058,
+        "basis_pct": -0.1624276251470713
       }
     }
   }
