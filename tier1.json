@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-04-15T12:47:45.132636+00:00",
+  "generated_utc": "2026-04-15T14:46:21.296265+00:00",
   "tier": "tier1",
   "price": {
     "source": "coinbase_spot",
-    "btc_usd": 74385.955,
-    "ts_utc": "2026-04-15T12:47:45.208173+00:00",
+    "btc_usd": 74045.335,
+    "ts_utc": "2026-04-15T14:46:21.458511+00:00",
     "raw": {
       "data": {
-        "amount": "74385.955",
+        "amount": "74045.335",
         "base": "BTC",
         "currency": "USD"
       }
@@ -15,38 +15,58 @@
   },
   "macro": {
     "dxy": {
-      "error": "HTTPSConnectionPool(host='query1.finance.yahoo.com', port=443): Max retries exceeded with url: /v8/finance/chart/DX-Y.NYB?range=5d&interval=1h (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fab6d979790>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"
+      "symbol": "DX-Y.NYB",
+      "last": 98.111,
+      "prev": 98.124,
+      "currency": "USD",
+      "exchangeName": "NYB",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-04-15T14:46:21.642265+00:00"
     },
     "us10y": {
-      "error": "HTTPSConnectionPool(host='query1.finance.yahoo.com', port=443): Max retries exceeded with url: /v8/finance/chart/%5ETNX?range=5d&interval=1h (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fab6d979670>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"
+      "symbol": "%5ETNX",
+      "last": 4.272,
+      "prev": 4.256,
+      "currency": "USD",
+      "exchangeName": "CGI",
+      "instrumentType": "INDEX",
+      "ts_utc": "2026-04-15T14:46:21.817966+00:00",
+      "last_yield_pct": 4.272,
+      "prev_yield_pct": 4.256
     },
     "es_futures": {
-      "error": "HTTPSConnectionPool(host='query1.finance.yahoo.com', port=443): Max retries exceeded with url: /v8/finance/chart/ES=F?range=5d&interval=1h (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x7fab6d97aa50>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"
+      "symbol": "ES=F",
+      "last": 7028.25,
+      "prev": 7004.75,
+      "currency": "USD",
+      "exchangeName": "CME",
+      "instrumentType": "FUTURE",
+      "ts_utc": "2026-04-15T14:46:22.019278+00:00"
     },
     "nq_futures": {
       "symbol": "NQ=F",
-      "last": 25989.0,
+      "last": 26144.5,
       "prev": 25996.75,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-04-15T12:48:45.639187+00:00"
+      "ts_utc": "2026-04-15T14:46:22.186972+00:00"
     }
   },
   "funding": {
     "source": "okx_swap",
     "symbol": "BTC-USDT-SWAP",
-    "fundingRate": -3.67319268272e-05,
+    "fundingRate": -6.19111911204e-05,
     "nextFundingRate": null,
-    "ts_exchange_ms": 1776257281635,
+    "ts_exchange_ms": 1776264380330,
     "nextFundingTime_ms": 1776297600000,
-    "ts_utc": "2026-04-15T12:48:45.850838+00:00",
+    "ts_utc": "2026-04-15T14:46:22.551463+00:00",
     "raw": {
       "code": "0",
       "data": [
         {
           "formulaType": "withRate",
-          "fundingRate": "-0.0000367319268272",
+          "fundingRate": "-0.0000619111911204",
           "fundingTime": "1776268800000",
           "impactValue": "20000.0000000000000000",
           "instId": "BTC-USDT-SWAP",
@@ -57,11 +77,11 @@
           "minFundingRate": "-0.00375",
           "nextFundingRate": "",
           "nextFundingTime": "1776297600000",
-          "premium": "-0.0006120510840702",
+          "premium": "-0.0005770831756602",
           "prevFundingTime": "1776240000000",
           "settFundingRate": "-0.0000149855594031",
           "settState": "settled",
-          "ts": "1776257281635"
+          "ts": "1776264380330"
         }
       ],
       "msg": ""
