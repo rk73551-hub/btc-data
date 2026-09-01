@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-09-01T05:09:38.433063+00:00",
+  "generated_utc": "2026-09-01T10:07:23.030244+00:00",
   "tier": "tier1",
   "price": {
     "source": "coinbase_spot",
-    "btc_usd": 78909.795,
-    "ts_utc": "2026-09-01T05:09:38.479051+00:00",
+    "btc_usd": 77874.485,
+    "ts_utc": "2026-09-01T10:07:23.077559+00:00",
     "raw": {
       "data": {
-        "amount": "78909.795",
+        "amount": "77874.485",
         "base": "BTC",
         "currency": "USD"
       }
@@ -16,12 +16,12 @@
   "macro": {
     "dxy": {
       "symbol": "DX-Y.NYB",
-      "last": 99.508,
+      "last": 99.572,
       "prev": 99.428,
       "currency": "USD",
       "exchangeName": "NYB",
       "instrumentType": "INDEX",
-      "ts_utc": "2026-09-01T05:09:38.542121+00:00"
+      "ts_utc": "2026-09-01T10:07:23.140689+00:00"
     },
     "us10y": {
       "symbol": "%5ETNX",
@@ -30,44 +30,44 @@
       "currency": "USD",
       "exchangeName": "CGI",
       "instrumentType": "INDEX",
-      "ts_utc": "2026-09-01T05:09:38.605744+00:00",
+      "ts_utc": "2026-09-01T10:07:23.198115+00:00",
       "last_yield_pct": 4.7580004,
       "prev_yield_pct": 4.7200003
     },
     "es_futures": {
       "symbol": "ES=F",
-      "last": 7692.25,
+      "last": 7654.5,
       "prev": 7699.0,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-09-01T05:09:38.664266+00:00"
+      "ts_utc": "2026-09-01T10:07:23.255822+00:00"
     },
     "nq_futures": {
       "symbol": "NQ=F",
-      "last": 29471.25,
+      "last": 29219.5,
       "prev": 29513.0,
       "currency": "USD",
       "exchangeName": "CME",
       "instrumentType": "FUTURE",
-      "ts_utc": "2026-09-01T05:09:38.729623+00:00"
+      "ts_utc": "2026-09-01T10:07:23.315147+00:00"
     }
   },
   "funding": {
     "source": "okx_swap",
     "symbol": "BTC-USDT-SWAP",
-    "fundingRate": 6.44621580882e-05,
+    "fundingRate": 7.8125347777e-05,
     "nextFundingRate": null,
-    "ts_exchange_ms": 1788239369815,
-    "nextFundingTime_ms": 1788278400000,
-    "ts_utc": "2026-09-01T05:09:39.065268+00:00",
+    "ts_exchange_ms": 1788257233847,
+    "nextFundingTime_ms": 1788307200000,
+    "ts_utc": "2026-09-01T10:07:23.627036+00:00",
     "raw": {
       "code": "0",
       "data": [
         {
           "formulaType": "withRate",
-          "fundingRate": "0.0000644621580882",
-          "fundingTime": "1788249600000",
+          "fundingRate": "0.0000781253477770",
+          "fundingTime": "1788278400000",
           "impactValue": "20000.0000000000000000",
           "instId": "BTC-USDT-SWAP",
           "instType": "SWAP",
@@ -76,12 +76,12 @@
           "method": "current_period",
           "minFundingRate": "-0.00375",
           "nextFundingRate": "",
-          "nextFundingTime": "1788278400000",
-          "premium": "-0.0003952699364276",
-          "prevFundingTime": "1788220800000",
-          "settFundingRate": "0.0000300643768007",
+          "nextFundingTime": "1788307200000",
+          "premium": "-0.0003900916715430",
+          "prevFundingTime": "1788249600000",
+          "settFundingRate": "0.0000752851949628",
           "settState": "settled",
-          "ts": "1788239369815"
+          "ts": "1788257233847"
         }
       ],
       "msg": ""
